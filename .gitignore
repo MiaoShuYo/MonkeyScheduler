@@ -69,3 +69,4 @@ mono_crash.*
 Thumbs.db
 ehthumbs.db
 Desktop.ini
+/MonkeyScheduler/bin
