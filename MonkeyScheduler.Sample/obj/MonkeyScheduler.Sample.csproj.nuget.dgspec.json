@@ -57,8 +57,7 @@
           "enableAudit": "true",
           "auditLevel": "low",
           "auditMode": "direct"
-        },
-        "SdkAnalysisLevel": "9.0.100"
+        }
       },
       "frameworks": {
         "net8.0": {
@@ -104,7 +103,7 @@
       }
     },
     "D:\\monkeyjob\\MonkeyScheduler\\MonkeyScheduler.csproj": {
-      "version": "1.0.0",
+      "version": "0.0.1.1",
       "restore": {
         "projectUniqueName": "D:\\monkeyjob\\MonkeyScheduler\\MonkeyScheduler.csproj",
         "projectName": "MonkeyScheduler",
@@ -148,8 +147,7 @@
           "enableAudit": "true",
           "auditLevel": "low",
           "auditMode": "direct"
-        },
-        "SdkAnalysisLevel": "9.0.100"
+        }
       },
       "frameworks": {
         "net8.0": {

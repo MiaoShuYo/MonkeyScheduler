@@ -10,14 +10,15 @@
 using System;
 using System.Reflection;
 
-[assembly: System.Reflection.AssemblyCompanyAttribute("Your Company")]
+[assembly: System.Reflection.AssemblyCompanyAttribute("MiaoShu")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyDescriptionAttribute("一个简单的分布式任务调度系统")]
-[assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
+[assembly: System.Reflection.AssemblyFileVersionAttribute("0.0.1.1")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("0.0.1.1+ca7b0aeb339c2d57ba59c033d8fd4f8e0d6c16d4")]
 [assembly: System.Reflection.AssemblyProductAttribute("MonkeyScheduler")]
 [assembly: System.Reflection.AssemblyTitleAttribute("MonkeyScheduler")]
-[assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
+[assembly: System.Reflection.AssemblyVersionAttribute("0.0.1.1")]
+[assembly: System.Reflection.AssemblyMetadataAttribute("RepositoryUrl", "https://github.com/MiaoShuYo/MonkeyScheduler.git")]
 
 // 由 MSBuild WriteCodeFragment 类生成。
 
