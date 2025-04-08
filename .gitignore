@@ -71,4 +71,4 @@ ehthumbs.db
 Desktop.ini
 /MonkeyScheduler/bin
 /MonkeyScheduler/obj
-/task/*
+task/
