@@ -48,10 +48,10 @@ using MonkeyScheduler.Core.Services;
 using MonkeyScheduler.Storage;
 
 // 创建任务存储
-var repo = new InMemoryTaskRepository();
+var repo = new CustomTaskRepository();
 
 // 创建任务执行器
-var executor = new SimulatedTaskExecutor();
+var executor = new CustomTaskExecutor();
 
 // 创建调度器
 var scheduler = new Scheduler(repo, executor);
