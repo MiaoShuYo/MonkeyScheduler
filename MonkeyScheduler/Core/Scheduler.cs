@@ -26,16 +26,33 @@ namespace MonkeyScheduler.Core
             {
                 while (!_cts.Token.IsCancellationRequested)
                 {
-                    var now = DateTime.UtcNow;
-                    var tasks = _repo.GetAllTasks()
-                                     .Where(t => t.Enabled && t.NextRunTime <= now)
-                                     .ToList();
-
-                    foreach (var task in tasks)
+                    try
                     {
-                        _ = _executor.ExecuteAsync(task); // 异步执行
-                        task.NextRunTime = CronParser.GetNextOccurrence(task.CronExpression, now);
-                        _repo.UpdateTask(task);
+                        var now = DateTime.UtcNow;
+                        var tasks = _repo.GetAllTasks()
+                                         .Where(t => t.Enabled && t.NextRunTime <= now)
+                                         .ToList();
+
+                        foreach (var task in tasks)
+                        {
+                            try
+                            {
+                                // 先执行任务
+                                await _executor.ExecuteAsync(task);
+                                
+                                // 然后更新下次执行时间
+                                task.NextRunTime = CronParser.GetNextOccurrence(task.CronExpression, now);
+                                _repo.UpdateTask(task);
+                            }
+                            catch (Exception ex)
+                            {
+                                Console.WriteLine($"执行任务 {task.Name} 时发生错误: {ex.Message}");
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"调度器发生错误: {ex.Message}");
                     }
 
                     await Task.Delay(1000, _cts.Token);

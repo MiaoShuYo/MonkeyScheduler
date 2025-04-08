@@ -17,7 +17,6 @@ namespace MonkeyScheduler.Core.Services
             try
             {
                 Console.WriteLine($"[INFO] Executing: {task.Name}");
-                await Task.Delay(500); // 模拟耗时任务
                 log.Result = "Success";
                 log.Success = true;
             }
