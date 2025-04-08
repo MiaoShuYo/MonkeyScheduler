@@ -1,4 +1,0 @@
-D:\monkeyjob\MonkeyScheduler.Sample\obj\Debug\net8.0\DistributedScheduler.Sample.GeneratedMSBuildEditorConfig.editorconfig
-D:\monkeyjob\MonkeyScheduler.Sample\obj\Debug\net8.0\DistributedScheduler.Sample.AssemblyInfoInputs.cache
-D:\monkeyjob\MonkeyScheduler.Sample\obj\Debug\net8.0\DistributedScheduler.Sample.AssemblyInfo.cs
-D:\monkeyjob\MonkeyScheduler.Sample\obj\Debug\net8.0\DistributedScheduler.Sample.csproj.CoreCompileInputs.cache

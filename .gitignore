@@ -69,6 +69,8 @@ mono_crash.*
 Thumbs.db
 ehthumbs.db
 Desktop.ini
-/MonkeyScheduler/bin
-/MonkeyScheduler/obj
+MonkeyScheduler/bin/
+MonkeyScheduler/obj/
+MonkeyScheduler.Sample/bin/
+MonkeyScheduler.Sample/obj/
 task/
