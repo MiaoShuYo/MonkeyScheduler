@@ -18,7 +18,7 @@ namespace MonkeyScheduler.Logging
             _includeException = includeException;
         }
 
-        public string Format(string level, string message, Exception exception = null)
+        public string Format(string level, string message, Exception? exception = null)
         {
             var result = new StringBuilder(_format);
 

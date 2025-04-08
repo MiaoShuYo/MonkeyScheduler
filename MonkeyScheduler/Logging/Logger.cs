@@ -13,7 +13,7 @@ namespace MonkeyScheduler.Logging
         private readonly TimeSpan _maxLogAge;
         private readonly ILogFormatter _formatter;
 
-        public Logger(string dbPath = "logs.db", int maxLogCount = 10000, TimeSpan? maxLogAge = null, ILogFormatter formatter = null)
+        public Logger(string dbPath = "logs.db", int maxLogCount = 10000, TimeSpan? maxLogAge = null, ILogFormatter? formatter = null)
         {
             _dbPath = dbPath;
             _connectionString = $"Data Source={_dbPath};Version=3;";
@@ -48,7 +48,7 @@ namespace MonkeyScheduler.Logging
             }
         }
 
-        public async Task LogAsync(string level, string message, Exception exception = null)
+        public async Task LogAsync(string level, string message, Exception? exception = null)
         {
             var formattedMessage = _formatter.Format(level, message, exception);
 
@@ -81,7 +81,7 @@ namespace MonkeyScheduler.Logging
             await LogAsync("WARNING", message);
         }
 
-        public async Task LogErrorAsync(string message, Exception exception = null)
+        public async Task LogErrorAsync(string message, Exception? exception = null)
         {
             await LogAsync("ERROR", message, exception);
         }
