@@ -8,11 +8,14 @@
     <Version>0.0.1</Version>
     <Authors>MiaoShu</Authors>
     <Company>MiaoShu</Company>
+    <RepositoryUrl>https://github.com/MiaoShuYo/MonkeyScheduler.git</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/MiaoShuYo/MonkeyScheduler.git</PackageProjectUrl>
     <Description>一个简单的分布式任务调度系统</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageTags>scheduler;cron;task;job</PackageTags>
     <PackageReleaseNotes>单节点版本发布</PackageReleaseNotes>
+    <PackageIcon>logo.png</PackageIcon>
   </PropertyGroup>
 
   <ItemGroup>
@@ -21,6 +24,6 @@
 
   <ItemGroup>
     <None Include="README.md" Pack="true" PackagePath="\" />
+    <None Include="logo.png" Pack="true" PackagePath="\" />
   </ItemGroup>
-
 </Project>

@@ -10,3 +10,4 @@ D:\monkeyjob\MonkeyScheduler\obj\Release\net9.0\MonkeyScheduler.dll
 D:\monkeyjob\MonkeyScheduler\obj\Release\net9.0\refint\MonkeyScheduler.dll
 D:\monkeyjob\MonkeyScheduler\obj\Release\net9.0\MonkeyScheduler.pdb
 D:\monkeyjob\MonkeyScheduler\obj\Release\net9.0\ref\MonkeyScheduler.dll
+D:\monkeyjob\MonkeyScheduler\obj\Release\net9.0\MonkeyScheduler.sourcelink.json
