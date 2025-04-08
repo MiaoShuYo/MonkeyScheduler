@@ -1,0 +1,12 @@
+D:\monkeyjob\MonkeyScheduler\bin\Debug\net9.0\MonkeyScheduler.deps.json
+D:\monkeyjob\MonkeyScheduler\bin\Debug\net9.0\MonkeyScheduler.dll
+D:\monkeyjob\MonkeyScheduler\bin\Debug\net9.0\MonkeyScheduler.pdb
+D:\monkeyjob\MonkeyScheduler\obj\Debug\net9.0\MonkeyScheduler.csproj.AssemblyReference.cache
+D:\monkeyjob\MonkeyScheduler\obj\Debug\net9.0\MonkeyScheduler.GeneratedMSBuildEditorConfig.editorconfig
+D:\monkeyjob\MonkeyScheduler\obj\Debug\net9.0\MonkeyScheduler.AssemblyInfoInputs.cache
+D:\monkeyjob\MonkeyScheduler\obj\Debug\net9.0\MonkeyScheduler.AssemblyInfo.cs
+D:\monkeyjob\MonkeyScheduler\obj\Debug\net9.0\MonkeyScheduler.csproj.CoreCompileInputs.cache
+D:\monkeyjob\MonkeyScheduler\obj\Debug\net9.0\MonkeyScheduler.dll
+D:\monkeyjob\MonkeyScheduler\obj\Debug\net9.0\refint\MonkeyScheduler.dll
+D:\monkeyjob\MonkeyScheduler\obj\Debug\net9.0\MonkeyScheduler.pdb
+D:\monkeyjob\MonkeyScheduler\obj\Debug\net9.0\ref\MonkeyScheduler.dll

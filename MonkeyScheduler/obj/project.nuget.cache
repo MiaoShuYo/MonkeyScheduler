@@ -1,0 +1,10 @@
+{
+  "version": 2,
+  "dgSpecHash": "DtL/8w6pk7A=",
+  "success": true,
+  "projectFilePath": "D:\\monkeyjob\\MonkeyScheduler\\MonkeyScheduler.csproj",
+  "expectedPackageFiles": [
+    "D:\\.nuget\\packages\\cronos\\0.7.1\\cronos.0.7.1.nupkg.sha512"
+  ],
+  "logs": []
+}
