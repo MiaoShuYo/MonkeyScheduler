@@ -18,16 +18,17 @@ namespace MonkeyScheduler.Core.Services
             {
                 Console.WriteLine($"[INFO] Executing: {task.Name}");
                 log.Result = "Success";
-                log.Success = true;
             }
             catch (Exception ex)
             {
-                log.Result = ex.Message;
-                log.Success = false;
+                Console.WriteLine($"[ERROR] Task execution failed: {ex.Message}");
+                log.Result = "Failed";
             }
-
-            log.EndTime = DateTime.UtcNow;
-            Console.WriteLine($"[INFO] Task {task.Name} finished. Success: {log.Success}");
+            finally
+            {
+                log.EndTime = DateTime.UtcNow;
+                Console.WriteLine($"[INFO] Task completed: {task.Name}, Result: {log.Result}");
+            }
         }
     }
 } 
