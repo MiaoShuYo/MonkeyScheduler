@@ -5,7 +5,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <PackageId>MonkeyScheduler</PackageId>
-    <Version>0.0.1.4-PublicBeta</Version>
+    <Version>0.0.1.5-PublicBeta</Version>
     <Authors>MiaoShu</Authors>
     <Company>MiaoShu</Company>
     <RepositoryUrl>https://github.com/MiaoShuYo/MonkeyScheduler.git</RepositoryUrl>

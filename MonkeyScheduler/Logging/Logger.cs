@@ -38,7 +38,7 @@ namespace MonkeyScheduler.Logging
                     command.CommandText = @"
                         CREATE TABLE IF NOT EXISTS Logs (
                             Id INTEGER PRIMARY KEY AUTOINCREMENT,
-                            Timestamp DATETIME NOT NULL,
+                            Timestamp TEXT NOT NULL,
                             Level TEXT NOT NULL,
                             Message TEXT NOT NULL,
                             Exception TEXT
@@ -51,6 +51,7 @@ namespace MonkeyScheduler.Logging
         public async Task LogAsync(string level, string message, Exception? exception = null)
         {
             var formattedMessage = _formatter.Format(level, message, exception);
+            var timestamp = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss.fff");
 
             using (var connection = new SQLiteConnection(_connectionString))
             {
@@ -61,7 +62,7 @@ namespace MonkeyScheduler.Logging
                         INSERT INTO Logs (Timestamp, Level, Message, Exception)
                         VALUES (@timestamp, @level, @message, @exception)";
                     
-                    command.Parameters.AddWithValue("@timestamp", DateTime.UtcNow);
+                    command.Parameters.AddWithValue("@timestamp", timestamp);
                     command.Parameters.AddWithValue("@level", level);
                     command.Parameters.AddWithValue("@message", formattedMessage);
                     command.Parameters.AddWithValue("@exception", exception?.ToString() ?? (object)DBNull.Value);
@@ -94,6 +95,8 @@ namespace MonkeyScheduler.Logging
 
         private async Task CleanupByAgeAsync()
         {
+            var cutoffDate = DateTime.UtcNow.Subtract(_maxLogAge).ToString("yyyy-MM-dd HH:mm:ss.fff");
+
             using (var connection = new SQLiteConnection(_connectionString))
             {
                 await connection.OpenAsync();
@@ -103,7 +106,7 @@ namespace MonkeyScheduler.Logging
                         DELETE FROM Logs 
                         WHERE Timestamp < @cutoffDate";
                     
-                    command.Parameters.AddWithValue("@cutoffDate", DateTime.UtcNow - _maxLogAge);
+                    command.Parameters.AddWithValue("@cutoffDate", cutoffDate);
                     await command.ExecuteNonQueryAsync();
                 }
             }
@@ -153,7 +156,13 @@ namespace MonkeyScheduler.Logging
                 {
                     command.CommandText = "SELECT MIN(Timestamp) FROM Logs";
                     var result = await command.ExecuteScalarAsync();
-                    return result == DBNull.Value ? null : (DateTime?)result;
+                    if (result == DBNull.Value || result == null)
+                    {
+                        return null;
+                    }
+                    return DateTime.ParseExact(result.ToString()!, 
+                                            "yyyy-MM-dd HH:mm:ss.fff", 
+                                            System.Globalization.CultureInfo.InvariantCulture);
                 }
             }
         }

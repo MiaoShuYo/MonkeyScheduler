@@ -7,6 +7,11 @@ namespace MonkeyScheduler.Core
     {
         public static DateTime GetNextOccurrence(string cronExpression, DateTime from)
         {
+            if (cronExpression == null)
+            {
+                throw new ArgumentNullException(nameof(cronExpression));
+            }
+
             try
             {
                 var parts = cronExpression.Split(' ');

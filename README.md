@@ -20,7 +20,14 @@
 ## 系统要求
 
 - .NET 8.0 或更高版本
-- .NET 9.0 或更高版本
+
+## 项目结构
+
+解决方案包含以下三个项目：
+
+1. **MonkeyScheduler**：核心库项目，包含调度系统的所有核心功能实现。
+2. **MonkeyScheduler.Tests**：单元测试项目，包含所有测试用例。
+3. **MonkeyScheduler.Sample**：示例项目，展示如何使用MonkeyScheduler库。
 
 ## 安装
 
@@ -159,59 +166,3 @@ public class CustomTaskExecutor : ITaskExecutor
     }
 }
 ```
-
-## 自定义任务存储
-
-```csharp
-public class CustomTaskRepository : ITaskRepository
-{
-    private readonly ILogger _logger;
-
-    public CustomTaskRepository(ILogger logger)
-    {
-        _logger = logger;
-    }
-
-    public void AddTask(ScheduledTask task)
-    {
-        try
-        {
-            // 实现自定义的任务存储逻辑
-            await _logger.LogInfoAsync($"添加任务: {task.Name}");
-        }
-        catch (Exception ex)
-        {
-            await _logger.LogErrorAsync($"添加任务失败: {task.Name}", ex);
-            throw;
-        }
-    }
-
-    // ... 其他方法实现 ...
-}
-```
-
-## 最佳实践
-
-1. **日志记录**：
-   - 在关键操作点记录日志
-   - 使用适当的日志级别
-   - 记录异常详细信息
-   - 定期清理过期日志
-
-2. **任务调度**：
-   - 合理设置 CRON 表达式
-   - 处理任务执行异常
-   - 监控任务执行状态
-
-3. **系统监控**：
-   - 监控日志数量
-   - 监控任务执行情况
-   - 设置告警阈值
-
-## 贡献指南
-
-欢迎提交 Issue 和 Pull Request 来帮助改进这个项目。
-
-## 许可证
-
-MIT License 
