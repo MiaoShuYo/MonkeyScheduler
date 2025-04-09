@@ -5,7 +5,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <PackageId>MonkeyScheduler</PackageId>
-    <Version>0.0.1.5-PublicBeta</Version>
+    <Version>0.0.1.5</Version>
     <Authors>MiaoShu</Authors>
     <Company>MiaoShu</Company>
     <RepositoryUrl>https://github.com/MiaoShuYo/MonkeyScheduler.git</RepositoryUrl>
@@ -14,7 +14,7 @@
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>Readme.md</PackageReadmeFile>
     <PackageTags>scheduler;cron;task;job;logging</PackageTags>
-    <PackageReleaseNotes>增加了日志</PackageReleaseNotes>
+    <PackageReleaseNotes>0.0.1.5正式版，目前仅支持单节点，暂时不支持分布式，目前版本适用于小型项目</PackageReleaseNotes>
     <PackageIcon>logo.png</PackageIcon>
   </PropertyGroup>
 
