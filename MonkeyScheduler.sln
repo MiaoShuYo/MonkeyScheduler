@@ -9,6 +9,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MonkeyScheduler.Tests", "Mo
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MonkeyScheduler.Sample", "MonkeyScheduler.Sample\MonkeyScheduler.Sample.csproj", "{BDAD49C4-4482-4A79-A1AC-A15AF8985ED0}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MonkeyScheduler.SchedulerService", "MonkeyScheduler.SchedulerService\MonkeyScheduler.SchedulerService.csproj", "{17C8B9A1-07E2-4D52-93DD-689E25B0A09D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MonkeyScheduler.WorkerService", "MonkeyScheduler.WorkerService\MonkeyScheduler.WorkerService.csproj", "{862F0FD0-E6DC-4BB6-A1CC-D8099E5C6E1D}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -30,5 +34,13 @@ Global
 		{BDAD49C4-4482-4A79-A1AC-A15AF8985ED0}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{BDAD49C4-4482-4A79-A1AC-A15AF8985ED0}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{BDAD49C4-4482-4A79-A1AC-A15AF8985ED0}.Release|Any CPU.Build.0 = Release|Any CPU
+		{17C8B9A1-07E2-4D52-93DD-689E25B0A09D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{17C8B9A1-07E2-4D52-93DD-689E25B0A09D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{17C8B9A1-07E2-4D52-93DD-689E25B0A09D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{17C8B9A1-07E2-4D52-93DD-689E25B0A09D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{862F0FD0-E6DC-4BB6-A1CC-D8099E5C6E1D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{862F0FD0-E6DC-4BB6-A1CC-D8099E5C6E1D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{862F0FD0-E6DC-4BB6-A1CC-D8099E5C6E1D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{862F0FD0-E6DC-4BB6-A1CC-D8099E5C6E1D}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

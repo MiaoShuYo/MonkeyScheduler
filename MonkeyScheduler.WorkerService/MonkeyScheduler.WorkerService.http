@@ -1,0 +1,6 @@
+@MonkeyScheduler.WorkerService_HostAddress = http://localhost:5217
+
+GET {{MonkeyScheduler.WorkerService_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
