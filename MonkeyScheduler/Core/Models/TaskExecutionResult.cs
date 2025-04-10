@@ -11,6 +11,7 @@ namespace MonkeyScheduler.Core.Models
         public DateTime EndTime { get; set; }
         public string? ErrorMessage { get; set; }
         public string WorkerNodeUrl { get; set; } = string.Empty;
+        public bool Success { get; set; }
     }
 
     public enum ExecutionStatus

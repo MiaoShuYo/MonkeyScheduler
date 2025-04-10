@@ -78,7 +78,7 @@ namespace MonkeyScheduler.Sample
             _logger = logger;
         }
 
-        public async Task ExecuteAsync(ScheduledTask task)
+        public async Task ExecuteAsync(ScheduledTask task, Func<TaskExecutionResult, Task>? onCompleted = null)
         {
             try
             {
@@ -95,10 +95,36 @@ namespace MonkeyScheduler.Sample
                 }
                 
                 await _logger.LogInfoAsync($"任务执行完成: {task.Name}");
+
+                // 调用完成回调
+                if (onCompleted != null)
+                {
+                    var result = new TaskExecutionResult
+                    {
+                        TaskId = task.Id,
+                        Success = true,
+                        EndTime = DateTime.UtcNow
+                    };
+                    await onCompleted(result);
+                }
             }
             catch (Exception ex)
             {
                 await _logger.LogErrorAsync($"任务执行失败: {task.Name}", ex);
+                
+                // 调用完成回调，报告失败
+                if (onCompleted != null)
+                {
+                    var result = new TaskExecutionResult
+                    {
+                        TaskId = task.Id,
+                        Success = false,
+                        ErrorMessage = ex.Message,
+                        EndTime = DateTime.UtcNow
+                    };
+                    await onCompleted(result);
+                }
+                
                 throw;
             }
         }

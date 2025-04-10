@@ -5,61 +5,52 @@ using MonkeyScheduler.Core.Models;
 namespace MonkeyScheduler.SchedulerService.Services
 {
     /// <summary>
-    /// 任务重试管理器，负责处理任务执行失败后的重试逻辑
-    /// 支持配置最大重试次数和重试间隔
+    /// 任务重试管理器接口
     /// </summary>
-    public class TaskRetryManager
+    public interface ITaskRetryManager
     {
-        private readonly TaskDispatcher _dispatcher;
-        private readonly int _maxRetries;
-        private readonly TimeSpan _retryInterval;
+        /// <summary>
+        /// 重试执行任务
+        /// </summary>
+        /// <param name="task">要重试的任务</param>
+        /// <param name="failedNode">失败的节点URL</param>
+        /// <returns>异步任务</returns>
+        Task RetryTaskAsync(ScheduledTask task, string failedNode);
+    }
+
+    /// <summary>
+    /// 任务重试管理器，处理任务执行失败后的重试逻辑
+    /// </summary>
+    public class TaskRetryManager : ITaskRetryManager
+    {
+        private readonly TaskDispatcher _taskDispatcher;
 
         /// <summary>
         /// 初始化任务重试管理器
         /// </summary>
-        /// <param name="dispatcher">任务分发器，用于重新分发任务</param>
-        /// <param name="maxRetries">最大重试次数，默认3次</param>
-        /// <param name="retryInterval">重试间隔，默认5秒</param>
-        public TaskRetryManager(TaskDispatcher dispatcher, int maxRetries = 3, TimeSpan? retryInterval = null)
+        /// <param name="taskDispatcher">任务分发器</param>
+        public TaskRetryManager(TaskDispatcher taskDispatcher)
         {
-            _dispatcher = dispatcher;
-            _maxRetries = maxRetries;
-            _retryInterval = retryInterval ?? TimeSpan.FromSeconds(5);
+            _taskDispatcher = taskDispatcher ?? throw new ArgumentNullException(nameof(taskDispatcher));
         }
 
         /// <summary>
-        /// 重试执行失败的任务
+        /// 重试执行任务
         /// </summary>
         /// <param name="task">要重试的任务</param>
-        /// <param name="failedNodeUrl">失败的节点URL</param>
-        /// <returns>重试是否成功</returns>
-        public async Task<bool> RetryTaskAsync(ScheduledTask task, string failedNodeUrl)
+        /// <param name="failedNode">失败的节点URL</param>
+        /// <returns>异步任务</returns>
+        public virtual async Task RetryTaskAsync(ScheduledTask task, string failedNode)
         {
-            int retryCount = 0;
-            while (retryCount < _maxRetries)
-            {
-                try
-                {
-                    // 尝试重新分发任务
-                    await _dispatcher.DispatchAsync(task);
-                    return true;
-                }
-                catch (Exception ex)
-                {
-                    retryCount++;
-                    if (retryCount >= _maxRetries)
-                    {
-                        // 达到最大重试次数，记录错误并返回失败
-                        Console.WriteLine($"任务 {task.Name} 重试 {_maxRetries} 次后仍然失败: {ex.Message}");
-                        return false;
-                    }
-                    // 记录重试失败信息
-                    Console.WriteLine($"任务 {task.Name} 第 {retryCount} 次重试失败: {ex.Message}");
-                    // 等待重试间隔时间
-                    await Task.Delay(_retryInterval);
-                }
-            }
-            return false;
+            if (task == null)
+                throw new ArgumentNullException(nameof(task));
+
+            if (string.IsNullOrWhiteSpace(failedNode))
+                throw new ArgumentNullException(nameof(failedNode));
+
+            // 在这里可以添加重试策略，例如延迟重试、最大重试次数等
+            // 目前简单地直接重试一次
+            await _taskDispatcher.ExecuteAsync(task);
         }
     }
 }

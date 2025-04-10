@@ -1,3 +1,4 @@
+ #nullable enable
 using System;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
@@ -14,7 +15,7 @@ namespace MonkeyScheduler.SchedulerService.Controllers
 
         public TaskStatusController(ITaskRepository taskRepository)
         {
-            _taskRepository = taskRepository;
+            _taskRepository = taskRepository ?? throw new ArgumentNullException(nameof(taskRepository));
         }
 
         [HttpPost("status")]
@@ -22,20 +23,23 @@ namespace MonkeyScheduler.SchedulerService.Controllers
         {
             try
             {
-                var task = _taskRepository.GetTask(result.TaskId);
+                var task = await Task.Run(() => _taskRepository.GetTask(result.TaskId));
                 if (task == null)
                 {
                     return NotFound($"任务 {result.TaskId} 不存在");
                 }
 
                 // 更新任务状态
-                // TODO: 将执行结果保存到数据库
-                Console.WriteLine($"任务 {task.Name} 状态更新: {result.Status}");
-                Console.WriteLine($"开始时间: {result.StartTime}, 结束时间: {result.EndTime}");
-                if (!string.IsNullOrEmpty(result.ErrorMessage))
+                await Task.Run(() =>
                 {
-                    Console.WriteLine($"错误信息: {result.ErrorMessage}");
-                }
+                    // TODO: 将执行结果保存到数据库
+                    Console.WriteLine($"任务 {task.Name} 状态更新: {result.Status}");
+                    Console.WriteLine($"开始时间: {result.StartTime}, 结束时间: {result.EndTime}");
+                    if (!string.IsNullOrEmpty(result.ErrorMessage))
+                    {
+                        Console.WriteLine($"错误信息: {result.ErrorMessage}");
+                    }
+                });
 
                 return Ok();
             }
@@ -45,4 +49,4 @@ namespace MonkeyScheduler.SchedulerService.Controllers
             }
         }
     }
-} 
+}

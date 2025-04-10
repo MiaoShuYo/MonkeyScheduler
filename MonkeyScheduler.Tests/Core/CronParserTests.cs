@@ -58,11 +58,11 @@ namespace MonkeyScheduler.Tests.Core
         public void GetNextOccurrence_NullCronExpression_ThrowsArgumentNullException()
         {
             // Arrange
-            string cronExpression = null;
+            string? cronExpression = null;
             var now = DateTime.UtcNow;
 
             // Act & Assert
-            Assert.Throws<ArgumentNullException>(() => CronParser.GetNextOccurrence(cronExpression, now));
+            Assert.Throws<ArgumentNullException>(() => CronParser.GetNextOccurrence(cronExpression!, now));
         }
     }
 } 
