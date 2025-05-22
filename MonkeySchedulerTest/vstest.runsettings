@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RunSettings>
+  <RunConfiguration>
+    <MaxCpuCount>2</MaxCpuCount>
+    <TestSessionTimeout>300000</TestSessionTimeout>
+    <TestAdaptersPaths>.</TestAdaptersPaths>
+    <CollectSourceInformation>false</CollectSourceInformation>
+  </RunConfiguration>
+  <LoggerRunSettings>
+    <Loggers>
+      <Logger friendlyName="console" enabled="True">
+        <Configuration>
+          <Verbosity>normal</Verbosity>
+        </Configuration>
+      </Logger>
+    </Loggers>
+  </LoggerRunSettings>
+  <DataCollectionRunSettings>
+    <DataCollectors>
+      <DataCollector friendlyName="Code Coverage" enabled="False">
+        <Configuration>
+          <Format>cobertura</Format>
+          <Exclude>[*]*.Program</Exclude>
+          <ExcludeByAttribute>Obsolete,GeneratedCodeAttribute,CompilerGeneratedAttribute</ExcludeByAttribute>
+          <SingleHit>false</SingleHit>
+          <UseVerifiableInstrumentation>True</UseVerifiableInstrumentation>
+          <AllowLowIntegrityProcesses>True</AllowLowIntegrityProcesses>
+          <CollectFromChildProcesses>True</CollectFromChildProcesses>
+          <CollectAspDotNet>False</CollectAspDotNet>
+        </Configuration>
+      </DataCollector>
+    </DataCollectors>
+  </DataCollectionRunSettings>
+</RunSettings> 
