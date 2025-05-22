@@ -1,7 +1,4 @@
-using System;
-using System.Net.Http;
 using System.Net.Http.Json;
-using System.Threading.Tasks;
 using MonkeyScheduler.Core.Models;
 
 namespace MonkeyScheduler.WorkerService.Services
@@ -10,7 +7,7 @@ namespace MonkeyScheduler.WorkerService.Services
     /// 状态上报服务
     /// 负责将任务执行结果上报给调度器
     /// </summary>
-    public class StatusReporterService
+    public class StatusReporterService : IStatusReporterService
     {
         /// <summary>
         /// HTTP客户端工厂，用于创建HTTP客户端实例
@@ -56,8 +53,19 @@ namespace MonkeyScheduler.WorkerService.Services
 
             try
             {
+                var json = System.Text.Json.JsonSerializer.Serialize(result);
+                Console.WriteLine($"Sending task execution result to {_schedulerUrl}/api/tasks/status");
+                Console.WriteLine($"TaskExecutionResult: {json}");
+                
                 // 向调度器发送任务执行结果
-                var response = await httpClient.PostAsJsonAsync($"{_schedulerUrl}/api/task/status", result);
+                var response = await httpClient.PostAsJsonAsync($"{_schedulerUrl}/api/tasks/status", result);
+                
+                if (!response.IsSuccessStatusCode)
+                {
+                    var responseContent = await response.Content.ReadAsStringAsync();
+                    Console.WriteLine($"Status report failed. Status: {response.StatusCode}, Response: {responseContent}");
+                }
+                
                 response.EnsureSuccessStatusCode();
             }
             catch (Exception ex)

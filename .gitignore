@@ -73,5 +73,7 @@ MonkeyScheduler/bin/
 MonkeyScheduler/obj/
 MonkeyScheduler.Sample/bin/
 MonkeyScheduler.Sample/obj/
-task/
+MonkeyScheduler.Sample/Properties/
 task.7z
+SchedulingServer/Properties/
+WorkerService/Properties/

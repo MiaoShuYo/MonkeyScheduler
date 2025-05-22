@@ -1,29 +1,38 @@
-using System;
-using System.Net.Http;
 using System.Net.Http.Json;
-using System.Threading.Tasks;
+using Microsoft.Extensions.Options;
 using MonkeyScheduler.Core.Models;
 using MonkeyScheduler.Core.Services;
 
 namespace MonkeyScheduler.WorkerService.Services
 {
     /// <summary>
+    /// 默认任务执行器配置
+    /// </summary>
+    public class DefaultTaskExecutorOptions
+    {
+        /// <summary>
+        /// 调度器服务地址
+        /// </summary>
+        public string SchedulerUrl { get; set; } = string.Empty;
+    }
+
+    /// <summary>
     /// 默认任务执行器，负责执行任务并上报结果
     /// </summary>
     public class DefaultTaskExecutor : ITaskExecutor
     {
         private readonly IHttpClientFactory _httpClientFactory;
-        private readonly string _schedulerUrl;
+        private readonly DefaultTaskExecutorOptions _options;
 
         /// <summary>
         /// 初始化默认任务执行器
         /// </summary>
         /// <param name="httpClientFactory">HTTP客户端工厂</param>
-        /// <param name="schedulerUrl">调度器服务地址</param>
-        public DefaultTaskExecutor(IHttpClientFactory httpClientFactory, string schedulerUrl)
+        /// <param name="options">配置选项</param>
+        public DefaultTaskExecutor(IHttpClientFactory httpClientFactory, IOptions<DefaultTaskExecutorOptions> options)
         {
             _httpClientFactory = httpClientFactory;
-            _schedulerUrl = schedulerUrl;
+            _options = options.Value;
         }
 
         /// <summary>
@@ -40,7 +49,7 @@ namespace MonkeyScheduler.WorkerService.Services
             try
             {
                 // 发送任务执行请求
-                var response = await client.PostAsJsonAsync($"{_schedulerUrl}/api/task/execute", task);
+                var response = await client.PostAsJsonAsync($"{_options.SchedulerUrl}/api/task/execute", task);
                 response.EnsureSuccessStatusCode();
 
                 // 调用完成回调
@@ -73,7 +82,7 @@ namespace MonkeyScheduler.WorkerService.Services
                     };
                     await statusCallback(result);
                 }
-                throw;
+                throw new Exception($"任务执行失败: {ex.Message}", ex);
             }
         }
     }

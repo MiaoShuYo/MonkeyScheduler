@@ -1,7 +1,5 @@
-using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Linq;
+using MonkeyScheduler.SchedulerService.Services;
 
 namespace MonkeyScheduler.SchedulerService
 {
@@ -10,7 +8,7 @@ namespace MonkeyScheduler.SchedulerService
     /// 负责管理所有Worker节点的注册状态和心跳信息
     /// 使用线程安全的并发字典存储节点信息
     /// </summary>
-    public class NodeRegistry
+    public class NodeRegistry:INodeRegistry
     {
         /// <summary>
         /// 存储节点信息的并发字典
@@ -61,9 +59,9 @@ namespace MonkeyScheduler.SchedulerService
         /// 获取所有注册的节点
         /// </summary>
         /// <returns>所有注册节点的URL列表</returns>
-        public virtual IEnumerable<string> GetAllNodes()
+        public virtual ConcurrentDictionary<string, DateTime> GetAllNodes()
         {
-            return _nodes.Keys;
+            return _nodes;
         }
 
         /// <summary>

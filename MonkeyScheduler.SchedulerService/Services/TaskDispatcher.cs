@@ -1,35 +1,26 @@
- #nullable enable
-using System;
-using System.Net.Http;
 using System.Net.Http.Json;
-using System.Threading.Tasks;
 using MonkeyScheduler.Core.Models;
 using MonkeyScheduler.Core.Services;
-using MonkeyScheduler.SchedulerService.Services;
 
-namespace MonkeyScheduler.SchedulerService
+namespace MonkeyScheduler.SchedulerService.Services
 {
-    public class TaskDispatcher : ITaskExecutor
+    public class TaskDispatcher : ITaskDispatcher
     {
         private readonly INodeRegistry _nodeRegistry;
         private readonly HttpClient _httpClient;
         private readonly ILoadBalancer _loadBalancer;
-        private readonly ITaskRetryManager _retryManager;
-        private readonly TimeSpan _nodeTimeout = TimeSpan.FromSeconds(30);
 
         public TaskDispatcher(
             INodeRegistry nodeRegistry, 
             HttpClient httpClient,
-            ILoadBalancer loadBalancer,
-            ITaskRetryManager retryManager)
+            ILoadBalancer loadBalancer)
         {
             _nodeRegistry = nodeRegistry ?? throw new ArgumentNullException(nameof(nodeRegistry));
             _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
             _loadBalancer = loadBalancer ?? throw new ArgumentNullException(nameof(loadBalancer));
-            _retryManager = retryManager ?? throw new ArgumentNullException(nameof(retryManager));
         }
 
-        public async Task ExecuteAsync(ScheduledTask task, Func<TaskExecutionResult, Task>? onCompleted = null)
+        public async Task DispatchTaskAsync(ScheduledTask task, Func<TaskExecutionResult, Task>? onCompleted = null)
         {
             if (task == null)
                 throw new ArgumentNullException(nameof(task));
@@ -54,7 +45,8 @@ namespace MonkeyScheduler.SchedulerService
                         Status = ExecutionStatus.Completed,
                         StartTime = startTime,
                         EndTime = DateTime.UtcNow,
-                        WorkerNodeUrl = selectedNode
+                        WorkerNodeUrl = selectedNode,
+                        Success = true
                     };
                     await onCompleted(result);
                 }
@@ -78,16 +70,13 @@ namespace MonkeyScheduler.SchedulerService
                         StartTime = startTime,
                         EndTime = DateTime.UtcNow,
                         ErrorMessage = ex.Message,
-                        WorkerNodeUrl = selectedNode ?? string.Empty
+                        WorkerNodeUrl = selectedNode ?? string.Empty,
+                        Success = false
                     };
                     await onCompleted(result);
                 }
                 
-                // 通过重试管理器在其他可用节点上重试任务
-                if (!string.IsNullOrEmpty(selectedNode))
-                {
-                    await _retryManager.RetryTaskAsync(task, selectedNode);
-                }
+                throw; // 重新抛出异常，让调用者决定如何处理重试
             }
         }
     }

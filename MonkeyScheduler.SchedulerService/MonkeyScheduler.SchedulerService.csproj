@@ -1,19 +1,34 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFrameworks>net8.0;net9.0</TargetFrameworks>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <Version>0.0.2-Beta</Version>
+    <PackageId>MonkeyScheduler.SchedulerService</PackageId>
+    <Authors>MiaoShu</Authors>
+    <Company>MiaoShu</Company>
+    <RepositoryUrl>https://github.com/MiaoShuYo/MonkeyScheduler.git</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/MiaoShuYo/MonkeyScheduler.git</PackageProjectUrl>
+    <Description>MonkeyScheduler.SchedulerService是MonkeyScheduler的分布式调度服务组件，提供任务分发、负载均衡和健康监控功能。主要特性包括：1. 基于轮询算法的智能负载均衡；2. Worker节点动态注册和管理；3. 任务分发和重试机制；4. 节点健康状态监控；5. RESTful API接口支持；6. 分布式任务执行追踪。适用于需要分布式任务调度和负载均衡的企业级应用场景。</Description>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>Readme.md</PackageReadmeFile>
+    <PackageTags>scheduler;cron;task;job;logging</PackageTags>
+    <PackageReleaseNotes>0.0.2测试版，新增了负载均衡和分布式任务</PackageReleaseNotes>
+    <PackageIcon>logo.png</PackageIcon>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="8.0.0" />
-    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.5.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Diagnostics.HealthChecks" Version="2.2.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Core" Version="2.3.0" />
+    <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks" Version="9.0.4" />
     <PackageReference Include="System.Net.Http.Json" Version="9.0.4" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\MonkeyScheduler\MonkeyScheduler.csproj" />
   </ItemGroup>
-
+  <ItemGroup>
+    <None Include="logo.png" Pack="true" PackagePath="..\" />
+  </ItemGroup>
 </Project>

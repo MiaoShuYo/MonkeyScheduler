@@ -1,6 +1,4 @@
-using System;
 using System.Collections.Concurrent;
-using System.Linq;
 using MonkeyScheduler.Core.Models;
 
 namespace MonkeyScheduler.SchedulerService.Services
@@ -50,10 +48,10 @@ namespace MonkeyScheduler.SchedulerService.Services
                 throw new InvalidOperationException("没有可用的Worker节点");
 
             // 使用最少任务数的节点
-            var selectedNode = nodes.OrderBy(n => _nodeTasks.GetOrAdd(n, 0)).First();
-            _nodeTasks.AddOrUpdate(selectedNode, 1, (_, count) => count + 1);
+            var selectedNode = nodes.OrderBy(n => _nodeTasks.GetOrAdd(n.Key, 0)).First();
+            _nodeTasks.AddOrUpdate(selectedNode.Key, 1, (_, count) => count + 1);
 
-            return selectedNode;
+            return selectedNode.Key;
         }
 
         /// <summary>
@@ -80,7 +78,26 @@ namespace MonkeyScheduler.SchedulerService.Services
             if (string.IsNullOrWhiteSpace(nodeUrl))
                 throw new ArgumentNullException(nameof(nodeUrl));
 
+            // 从节点任务计数器中移除
             _nodeTasks.TryRemove(nodeUrl, out _);
+            
+            // 从节点注册表中移除
+            _nodeRegistry.RemoveNode(nodeUrl);
+        }
+        /// <summary>
+        /// 添加新节点到负载均衡器
+        /// </summary>
+        /// <param name="nodeUrl"></param>
+        public void AddNode(string nodeUrl)
+        {
+            if (string.IsNullOrWhiteSpace(nodeUrl))
+                throw new ArgumentNullException(nameof(nodeUrl));
+
+            // 如果节点已经存在，则不添加
+            if (!_nodeTasks.ContainsKey(nodeUrl))
+            {
+                _nodeTasks.TryAdd(nodeUrl, 0);
+            }
         }
     }
 }
