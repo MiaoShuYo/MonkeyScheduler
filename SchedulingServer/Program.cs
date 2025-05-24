@@ -12,7 +12,8 @@ builder.Services.AddEndpointsApiExplorer();           // 添加API文档支持
 builder.Services.AddSwaggerGen();                     // 添加Swagger支持
 // 添加控制器并注册类库的控制器
 builder.Services.AddControllers()
-    .AddApplicationPart(typeof(WorkerApiController).Assembly);
+    .AddApplicationPart(typeof(WorkerApiController).Assembly)
+    .AddApplicationPart(typeof(TasksController).Assembly);
 
 // Add services to the container.
 // 添加调度服务

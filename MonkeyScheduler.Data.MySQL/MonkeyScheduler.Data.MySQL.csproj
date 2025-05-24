@@ -12,11 +12,18 @@
     <PackageProjectUrl>https://github.com/MiaoShuYo/MonkeyScheduler.git</PackageProjectUrl>
     <Description>MonkeyScheduler.Data.MySQL是MonkeyScheduler的MySQL数据存储实现库，提供基于MySQL数据库的任务持久化解决方案。主要特性包括：1. 完整的任务CRUD操作支持；2. 基于Dapper的高性能数据访问；3. 任务执行结果记录和查询；4. 系统日志持久化存储；5. 数据库初始化脚本支持；6. 支持事务和并发控制。适用于需要将任务数据持久化到MySQL数据库的MonkeyScheduler应用场景。</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <PackageReadmeFile>Readme.md</PackageReadmeFile>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageTags>scheduler;cron;task;job;logging</PackageTags>
     <PackageReleaseNotes>1.0.0</PackageReleaseNotes>
     <PackageIcon>logo.png</PackageIcon>
   </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="..\README.md">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Dapper" Version="2.1.66" />
@@ -27,6 +34,13 @@
 
   <ItemGroup>
     <ProjectReference Include="..\MonkeyScheduler\MonkeyScheduler.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="logo.png">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
   </ItemGroup>
 
 </Project>
