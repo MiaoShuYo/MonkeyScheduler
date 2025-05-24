@@ -12,7 +12,7 @@
     <PackageProjectUrl>https://github.com/MiaoShuYo/MonkeyScheduler.git</PackageProjectUrl>
     <Description>MonkeyScheduler.SchedulerService是MonkeyScheduler的分布式调度服务组件，提供任务分发、负载均衡和健康监控功能。主要特性包括：1. 基于轮询算法的智能负载均衡；2. Worker节点动态注册和管理；3. 任务分发和重试机制；4. 节点健康状态监控；5. RESTful API接口支持；6. 分布式任务执行追踪。适用于需要分布式任务调度和负载均衡的企业级应用场景。</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <PackageReadmeFile>Readme.md</PackageReadmeFile>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageTags>scheduler;cron;task;job;logging</PackageTags>
     <PackageReleaseNotes>1.0.0</PackageReleaseNotes>
     <PackageIcon>logo.png</PackageIcon>
@@ -29,6 +29,13 @@
     <ProjectReference Include="..\MonkeyScheduler\MonkeyScheduler.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="logo.png" Pack="true" PackagePath="..\" />
+    <None Include="..\logo.png">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
+    <None Include="..\README.md">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
   </ItemGroup>
 </Project>
