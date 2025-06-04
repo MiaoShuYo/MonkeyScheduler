@@ -1,0 +1,42 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>net8.0;net9.0</TargetFrameworks>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+     <Version>1.0.0</Version>
+    <PackageId>MonkeyScheduler.WorkerService</PackageId>
+    <Authors>MiaoShu</Authors>
+    <Company>MiaoShu</Company>
+    <RepositoryUrl>https://github.com/MiaoShuYo/MonkeyScheduler.git</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/MiaoShuYo/MonkeyScheduler.git</PackageProjectUrl>
+    <Description>MonkeyScheduler.WorkerService是MonkeyScheduler的工作节点服务组件，负责实际执行调度任务并管理节点生命周期。主要特性包括：1. 任务执行和结果上报；2. 节点心跳检测和状态同步；3. 健康状态监控和报告；4. 任务执行状态追踪；5. 异常处理和错误报告；6. 与调度器服务的自动注册和通信。适用于需要分布式任务执行的工作节点部署场景。</Description>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageTags>scheduler;cron;task;job;logging</PackageTags>
+    <PackageReleaseNotes>1.0.0</PackageReleaseNotes>
+    <PackageIcon>logo.png</PackageIcon>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="..\logo.png">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
+    <None Include="..\README.md">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
+  </ItemGroup>
+  
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Diagnostics.HealthChecks" Version="2.2.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Core" Version="2.3.0" />
+    <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks" Version="9.0.4" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\MonkeyScheduler\MonkeyScheduler.csproj" />
+  </ItemGroup>
+
+</Project>

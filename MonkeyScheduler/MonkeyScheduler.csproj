@@ -2,29 +2,35 @@
 
   <PropertyGroup>
     <TargetFrameworks>net8.0;net9.0</TargetFrameworks>
-    <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Version>1.0.0</Version>
     <PackageId>MonkeyScheduler</PackageId>
-    <Version>0.0.1.5</Version>
     <Authors>MiaoShu</Authors>
     <Company>MiaoShu</Company>
     <RepositoryUrl>https://github.com/MiaoShuYo/MonkeyScheduler.git</RepositoryUrl>
     <PackageProjectUrl>https://github.com/MiaoShuYo/MonkeyScheduler.git</PackageProjectUrl>
-    <Description>一个简单的分布式任务调度系统</Description>
+    <Description>MonkeyScheduler是一个轻量级、高性能的任务调度库，支持基于Cron表达式的定时任务调度。主要特性包括：1. 灵活的任务调度系统，支持Cron表达式配置；2. 可扩展的任务存储机制，默认提供内存存储；3. 完整的日志记录系统，支持自定义日志格式化；4. 异步任务执行和分发；5. 支持任务启用/禁用控制；6. 内置错误处理和恢复机制。适用于需要定时任务管理的.NET应用程序。</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <PackageReadmeFile>Readme.md</PackageReadmeFile>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageTags>scheduler;cron;task;job;logging</PackageTags>
-    <PackageReleaseNotes>0.0.1.5正式版，目前仅支持单节点，暂时不支持分布式，目前版本适用于小型项目</PackageReleaseNotes>
+    <PackageReleaseNotes>1.0.0</PackageReleaseNotes>
     <PackageIcon>logo.png</PackageIcon>
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Http" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Options" Version="8.0.0" />
+    <PackageReference Include="System.Net.Http.Json" Version="9.0.4" />
     <PackageReference Include="Cronos" Version="0.7.1" />
     <PackageReference Include="System.Data.SQLite" Version="1.0.118" />
   </ItemGroup>
 
   <ItemGroup>
-    <None Include="Readme.md" Pack="true" PackagePath="\" />
-    <None Include="logo.png" Pack="true" PackagePath="\" />
+    <None Include="..\README.md">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
+    <None Include="logo.png" Pack="True" PackagePath="\" />
   </ItemGroup>
 </Project>

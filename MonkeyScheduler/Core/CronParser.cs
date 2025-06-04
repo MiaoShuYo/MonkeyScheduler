@@ -25,12 +25,12 @@ namespace MonkeyScheduler.Core
                 else
                 {
                     // 处理标准 CRON 表达式
-                    var standardExpression = parts.Length == 6 
-                        ? string.Join(" ", parts.Skip(1).Take(5)) 
+                    var standardExpression = parts.Length == 6
+                        ? string.Join(" ", parts.Skip(1).Take(5))
                         : cronExpression;
-                    
+
                     var expression = CronExpression.Parse(standardExpression);
-                    var next = expression.GetNextOccurrence(from, TimeZoneInfo.Local);
+                    var next = expression.GetNextOccurrence(from.ToUniversalTime(), TimeZoneInfo.Utc);
                     return next ?? DateTime.MaxValue;
                 }
             }
@@ -42,4 +42,4 @@ namespace MonkeyScheduler.Core
             }
         }
     }
-} 
+}
