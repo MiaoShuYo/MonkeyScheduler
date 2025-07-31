@@ -34,14 +34,14 @@ namespace MonkeyScheduler.WorkerService.Controllers
 
             try
             {
-                _logger.LogInformation("收到任务执行请求: {TaskName}", task.Name);
+                _logger.LogInformation("收到任务执行请求: {TaskName}", task.Name?.Replace("\r", "").Replace("\n", ""));
                 
                 await _executor.ExecuteAsync(task, async result =>
                 {
                     await _statusReporter.ReportStatusAsync(result);
                 });
                 
-                _logger.LogInformation("任务执行完成: {TaskName}", task.Name);
+                _logger.LogInformation("任务执行完成: {TaskName}", task.Name?.Replace("\r", "").Replace("\n", ""));
                 return Ok();
             }
             catch (Exception ex)
