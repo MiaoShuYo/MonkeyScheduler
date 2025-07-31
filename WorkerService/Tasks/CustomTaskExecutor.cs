@@ -23,6 +23,12 @@ public class CustomTaskExecutor : ITaskExecutor
 
     public async Task ExecuteAsync(ScheduledTask task, Func<TaskExecutionResult, Task>? statusCallback = null)
     {
+        // Sanitize task.Name to prevent log forging
+        var sanitizedTaskName = (task.Name ?? string.Empty)
+            .Replace("\r", "")
+            .Replace("\n", "")
+            .Replace(Environment.NewLine, "");
+
         var startTime = DateTime.UtcNow;
         var result = new TaskExecutionResult
         {
@@ -33,7 +39,7 @@ public class CustomTaskExecutor : ITaskExecutor
 
         try
         {
-            _logger.LogInformation("开始执行任务: {TaskName}", task.Name);
+            _logger.LogInformation("开始执行任务: {TaskName}", sanitizedTaskName);
 
             // 根据任务名称执行不同的逻辑
             switch (task.Name.ToLower())
@@ -48,14 +54,14 @@ public class CustomTaskExecutor : ITaskExecutor
                     await ExecuteSystemCheckTask(task);
                     break;
                 default:
-                    throw new NotImplementedException($"未实现的任务类型: {task.Name}");
+                    throw new NotImplementedException($"未实现的任务类型: {sanitizedTaskName}");
             }
 
             result.Status = ExecutionStatus.Completed;
             result.EndTime = DateTime.UtcNow;
             result.Success = true;
             result.StackTrace = string.Empty;
-            _logger.LogInformation("任务执行完成: {TaskName}", task.Name);
+            _logger.LogInformation("任务执行完成: {TaskName}", sanitizedTaskName);
         }
         catch (Exception ex)
         {
@@ -64,7 +70,7 @@ public class CustomTaskExecutor : ITaskExecutor
             result.ErrorMessage = ex.Message;
             result.Success = false;
             result.StackTrace = ex.StackTrace ?? string.Empty;
-            _logger.LogError(ex, "任务执行失败: {TaskName}", task.Name);
+            _logger.LogError(ex, "任务执行失败: {TaskName}", sanitizedTaskName);
         }
         finally
         {
