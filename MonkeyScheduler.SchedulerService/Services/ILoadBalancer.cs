@@ -36,5 +36,23 @@ namespace MonkeyScheduler.SchedulerService.Services
         /// <exception cref="ArgumentNullException">当 nodeUrl 参数为 null 或空时抛出</exception>
         /// <exception cref="InvalidOperationException">当节点已存在时抛出</exception>
         void AddNode(string nodeUrl);
+
+        /// <summary>
+        /// 获取当前负载均衡策略信息
+        /// </summary>
+        /// <returns>策略信息</returns>
+        object GetStrategyInfo();
+
+        /// <summary>
+        /// 更新负载均衡策略配置
+        /// </summary>
+        /// <param name="configuration">新的配置</param>
+        void UpdateStrategyConfiguration(IDictionary<string, object> configuration);
+
+        /// <summary>
+        /// 获取节点负载信息
+        /// </summary>
+        /// <returns>节点负载字典</returns>
+        IDictionary<string, int> GetNodeLoads();
     }
 }

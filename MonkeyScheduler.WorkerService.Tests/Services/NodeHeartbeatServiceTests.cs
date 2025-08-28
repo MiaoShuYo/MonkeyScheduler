@@ -33,11 +33,16 @@ namespace MonkeyScheduler.WorkerService.Tests.Services
             _httpClientFactoryMock.Setup(x => x.CreateClient(It.IsAny<string>()))
                 .Returns(httpClient);
 
+            var workerOptions = new MonkeyScheduler.WorkerService.Options.WorkerOptions
+            {
+                SchedulerUrl = SchedulerUrl,
+                WorkerUrl = WorkerUrl
+            };
             _service = new NodeHeartbeatService(
                 _httpClientFactoryMock.Object,
-                SchedulerUrl,
-                WorkerUrl,
-                _loggerMock.Object);
+                Microsoft.Extensions.Options.Options.Create(workerOptions),
+                _loggerMock.Object
+            );
         }
 
         [TestMethod]

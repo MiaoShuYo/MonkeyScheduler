@@ -1,9 +1,12 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
+using MonkeyScheduler.Core.Configuration;
 using MonkeyScheduler.Core.Services;
 using MonkeyScheduler.Storage;
 using Microsoft.Extensions.Logging;
+using MonkeyScheduler.WorkerService.Options;
 
 namespace MonkeyScheduler.WorkerService.Services;
 
@@ -34,28 +37,25 @@ public static class ServiceCollectionExtensions
         // 注册核心服务
         services.AddSingleton<ITaskRepository, InMemoryTaskRepository>(); // 使用内存存储作为任务仓库
         services.AddHttpClient(); // 注册HTTP客户端工厂
+        services.AddSingleton<IStatusReporterService, StatusReporterService>(); // 注册状态上报服务
+        services.AddHostedService<NodeHeartbeatService>(); // 注册节点心跳服务为托管服务
 
-        // 从配置中获取schedulerUrl
-        var configuration = services.BuildServiceProvider().GetRequiredService<IConfiguration>();
-        var schedulerUrl = configuration["MonkeyScheduler:SchedulingServer:Url"] ?? "http://localhost:4057";
-        // 注册状态上报服务
-        services.AddSingleton<IStatusReporterService>(provider =>
-            new StatusReporterService(
-                provider.GetRequiredService<IHttpClientFactory>(),
-                schedulerUrl,
-                workerUrl
-            )
-        );
+        // 配置Worker选项 - 使用延迟配置，避免在服务注册时构建ServiceProvider
+        services.Configure<WorkerOptions>(options =>
+        {
+            options.WorkerUrl = workerUrl;
+            options.SchedulerUrl = "http://localhost:4057"; // 默认调度器URL
+        });
 
-        // 注册心跳服务
-        services.AddHostedService(provider =>
-            new NodeHeartbeatService(
-                provider.GetRequiredService<IHttpClientFactory>(),
-                schedulerUrl,
-                workerUrl,
-                provider.GetRequiredService<ILogger<NodeHeartbeatService>>()
-            )
-        );
+        services.PostConfigure<WorkerOptions>(options =>
+        {
+            if (string.IsNullOrEmpty(options.SchedulerUrl))
+            {
+                options.SchedulerUrl = "http://localhost:4057";
+            }
+        });
+        
+        // 只保留 AddHttpClient、AddHealthChecks、AddSingleton<ITaskRepository, InMemoryTaskRepository>() 等标准注册
 
         services.AddHealthChecks()
             .AddCheck<WorkerHealthCheck>("worker_health_check");

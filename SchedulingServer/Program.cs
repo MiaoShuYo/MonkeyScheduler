@@ -12,14 +12,17 @@ builder.Services.AddEndpointsApiExplorer();           // 添加API文档支持
 builder.Services.AddSwaggerGen();                     // 添加Swagger支持
 // 添加控制器并注册类库的控制器
 builder.Services.AddControllers()
-    .AddApplicationPart(typeof(WorkerApiController).Assembly)
-    .AddApplicationPart(typeof(TasksController).Assembly);
+    .AddApplicationPart(typeof(WorkerApiController).Assembly);
 
 // Add services to the container.
 // 添加调度服务
-builder.Services.AddSchedulerService();
-// 添加负载均衡
-builder.Services.AddLoadBalancer<CustomLoadBalancer>();
+builder.Services.AddSchedulerService(builder.Configuration);
+
+// 注册自定义负载均衡器（使用增强的轮询策略）
+builder.Services.AddSingleton<CustomLoadBalancer>();
+builder.Services.AddSingleton<ILoadBalancer>(sp => 
+    sp.GetRequiredService<CustomLoadBalancer>());
+
 // 注册NodeRegistry服务
 builder.Services.AddSingleton<NodeRegistry>();
 builder.Services.AddSingleton<INodeRegistry>(sp => 
