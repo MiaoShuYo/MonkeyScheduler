@@ -28,8 +28,11 @@ namespace MonkeyScheduler.Data.MySQL.Tests
             _loggerMock = new Mock<ILogger<MySqlDbContext>>();
             _connectionMock = new Mock<IDbConnection>();
             _testConnection = new TestDbConnection(_connectionMock.Object);
-            _dbContextMock =
-                new Mock<MySqlDbContext>(MockBehavior.Loose, "dummy_connection_string", _loggerMock.Object);
+            var options = new MySqlConnectionOptions
+            {
+                ConnectionString = "Server=localhost;Database=testdb;User=testuser;Password=testpass;"
+            };
+            _dbContextMock = new Mock<MySqlDbContext>(MockBehavior.Loose, options, _loggerMock.Object);
 
             // 设置DbContext的Connection属性返回我们的测试连接
             _dbContextMock.Setup(x => x.Connection).Returns(_testConnection);

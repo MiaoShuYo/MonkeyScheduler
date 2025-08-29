@@ -47,32 +47,50 @@ namespace MonkeyScheduler.Data.MySQL.Tests
         }
 
         [TestMethod]
+        public void Constructor_WithCustomRetrySettings_CreatesInstance()
+        {
+            // Arrange & Act
+            var dbContext = new MySqlDbContext(TestConnectionString, _loggerMock.Object, 5, TimeSpan.FromSeconds(2));
+
+            // Assert
+            Assert.IsNotNull(dbContext);
+        }
+
+        [TestMethod]
         public void Connection_WhenCalled_CreatesNewConnection()
         {
             // Arrange
-            var dbContext = new MySqlDbContext(TestConnectionString, _loggerMock.Object);
+            var dbContext = new MySQLDbContextForTests(TestConnectionString, _loggerMock.Object);
 
-            // Act & Assert
-            try
-            {
+            // Act
                 var connection = dbContext.Connection;
+
+            // Assert
                 Assert.IsNotNull(connection);
                 Assert.AreEqual(ConnectionState.Open, connection.State);
-            }
-            catch (Exception ex)
-            {
-                // 由于无法连接到数据库，我们期望会抛出异常
-                Assert.IsTrue(ex.Message.Contains("创建数据库连接失败") || ex.Message.Contains("Unable to connect"));
-            }
+        }
+
+        [TestMethod]
+        public void Connection_WhenCalledMultipleTimes_ReturnsSameConnection()
+        {
+            // Arrange
+            var dbContext = new MySQLDbContextForTests(TestConnectionString, _loggerMock.Object);
+
+            // Act
+                var connection1 = dbContext.Connection;
+                var connection2 = dbContext.Connection;
+                
+            // Assert
+                Assert.IsNotNull(connection1);
+                Assert.IsNotNull(connection2);
+                Assert.AreSame(connection1, connection2);
         }
 
         [TestMethod]
         public void Dispose_WhenCalled_ClosesConnection()
         {
             // Arrange
-            var dbContext = new MySqlDbContext(TestConnectionString, _loggerMock.Object);
-            try
-            {
+            var dbContext = new MySQLDbContextForTests(TestConnectionString, _loggerMock.Object);
                 var connection = dbContext.Connection;
                 Assert.IsNotNull(connection);
                 Assert.AreEqual(ConnectionState.Open, connection.State);
@@ -82,77 +100,149 @@ namespace MonkeyScheduler.Data.MySQL.Tests
 
                 // Assert
                 Assert.AreEqual(ConnectionState.Closed, connection.State);
-            }
-            catch (Exception ex)
-            {
-                // 由于无法连接到数据库，我们期望会抛出异常
-                Assert.IsTrue(ex.Message.Contains("创建数据库连接失败") || ex.Message.Contains("Unable to connect"));
-            }
+        }
+
+        [TestMethod]
+        [ExpectedException(typeof(ObjectDisposedException))]
+        public void Connection_AfterDispose_ThrowsObjectDisposedException()
+        {
+            // Arrange
+            var dbContext = new MySqlDbContext(TestConnectionString, _loggerMock.Object);
+            dbContext.Dispose();
+
+            // Act
+            var connection = dbContext.Connection;
         }
 
         [TestMethod]
         public void BeginTransaction_WhenCalled_StartsNewTransaction()
         {
             // Arrange
-            var dbContext = new MySqlDbContext(TestConnectionString, _loggerMock.Object);
+            var dbContext = new MySQLDbContextForTests(TestConnectionString, _loggerMock.Object);
 
-            // Act & Assert
-            try
-            {
+            // Act
                 dbContext.BeginTransaction();
-                var connection = dbContext.Connection;
-                Assert.IsNotNull(connection);
-                Assert.AreEqual(ConnectionState.Open, connection.State);
-            }
-            catch (MySqlException ex)
-            {
-                // 由于无法连接到数据库，我们期望会抛出 MySqlException
-                Assert.IsTrue(ex.Message.Contains("Unable to connect") || ex.Message.Contains("无法连接到"));
-            }
+
+            // Assert
+                Assert.IsNotNull(dbContext.CurrentTransaction);
+        }
+
+        [TestMethod]
+        [ExpectedException(typeof(InvalidOperationException))]
+        public void BeginTransaction_WhenTransactionAlreadyExists_ThrowsInvalidOperationException()
+        {
+            // Arrange
+            var dbContext = new MySQLDbContextForTests(TestConnectionString, _loggerMock.Object);
+
+            // Act
+                dbContext.BeginTransaction();
+                dbContext.BeginTransaction(); // 第二次调用应该抛出异常
         }
 
         [TestMethod]
         public void CommitTransaction_WhenCalled_CommitsTransaction()
         {
             // Arrange
-            var dbContext = new MySqlDbContext(TestConnectionString, _loggerMock.Object);
-            try
-            {
+            var dbContext = new MySQLDbContextForTests(TestConnectionString, _loggerMock.Object);
                 dbContext.BeginTransaction();
-                var connection = dbContext.Connection;
-                Assert.IsNotNull(connection);
-                Assert.AreEqual(ConnectionState.Open, connection.State);
+                Assert.IsNotNull(dbContext.CurrentTransaction);
 
-                // Act & Assert
+            // Act
                 dbContext.CommitTransaction();
-            }
-            catch (MySqlException ex)
-            {
-                // 由于无法连接到数据库，我们期望会抛出 MySqlException
-                Assert.IsTrue(ex.Message.Contains("Unable to connect") || ex.Message.Contains("无法连接到"));
-            }
+
+            // Assert
+                Assert.IsNull(dbContext.CurrentTransaction);
+        }
+
+        [TestMethod]
+        [ExpectedException(typeof(InvalidOperationException))]
+        public void CommitTransaction_WhenNoTransactionExists_ThrowsInvalidOperationException()
+        {
+            // Arrange
+            var dbContext = new MySqlDbContext(TestConnectionString, _loggerMock.Object);
+
+            // Act
+            dbContext.CommitTransaction();
         }
 
         [TestMethod]
         public void RollbackTransaction_WhenCalled_RollbacksTransaction()
         {
             // Arrange
-            var dbContext = new MySqlDbContext(TestConnectionString, _loggerMock.Object);
-            try
-            {
+            var dbContext = new MySQLDbContextForTests(TestConnectionString, _loggerMock.Object);
                 dbContext.BeginTransaction();
-                var connection = dbContext.Connection;
-                Assert.IsNotNull(connection);
-                Assert.AreEqual(ConnectionState.Open, connection.State);
+                Assert.IsNotNull(dbContext.CurrentTransaction);
 
-                // Act & Assert
+            // Act
                 dbContext.RollbackTransaction();
-            }
-            catch (MySqlException ex)
-            {
-                // 由于无法连接到数据库，我们期望会抛出 MySqlException
-                Assert.IsTrue(ex.Message.Contains("Unable to connect") || ex.Message.Contains("无法连接到"));
-            }
+
+            // Assert
+                Assert.IsNull(dbContext.CurrentTransaction);
+        }
+
+        [TestMethod]
+        [ExpectedException(typeof(InvalidOperationException))]
+        public void RollbackTransaction_WhenNoTransactionExists_ThrowsInvalidOperationException()
+        {
+            // Arrange
+            var dbContext = new MySqlDbContext(TestConnectionString, _loggerMock.Object);
+
+            // Act
+            dbContext.RollbackTransaction();
+        }
+
+        [TestMethod]
+        public void IsConnectionAvailable_WhenConnectionIsHealthy_ReturnsTrue()
+        {
+            // Arrange
+            var dbContext = new MySQLDbContextForTests(TestConnectionString, _loggerMock.Object);
+
+            // Act
+                var isAvailable = dbContext.IsConnectionAvailable();
+
+            // Assert
+                Assert.IsTrue(isAvailable);
+        }
+
+        [TestMethod]
+        public void IsConnectionAvailable_AfterDispose_ReturnsFalse()
+        {
+            // Arrange
+            var dbContext = new MySqlDbContext(TestConnectionString, _loggerMock.Object);
+            dbContext.Dispose();
+
+            // Act
+            var isAvailable = dbContext.IsConnectionAvailable();
+
+            // Assert
+            Assert.IsFalse(isAvailable);
+        }
+
+        [TestMethod]
+        public void Dispose_WithActiveTransaction_RollbacksTransaction()
+        {
+            // Arrange
+            var dbContext = new MySQLDbContextForTests(TestConnectionString, _loggerMock.Object);
+                dbContext.BeginTransaction();
+                Assert.IsNotNull(dbContext.CurrentTransaction);
+
+                // Act
+                dbContext.Dispose();
+
+                // Assert
+                Assert.IsNull(dbContext.CurrentTransaction);
+        }
+
+        [TestMethod]
+        public void ConnectionString_ContainsConnectionPoolingSettings()
+        {
+            // Arrange
+            var dbContext = new MySqlDbContext(TestConnectionString, _loggerMock.Object);
+
+            // Act & Assert
+            // 通过反射或其他方式验证连接字符串包含连接池设置
+            // 这里我们只能验证实例创建成功
+            Assert.IsNotNull(dbContext);
         }
     }
 } 

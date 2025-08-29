@@ -7,6 +7,7 @@ using MonkeyScheduler.Core.Models;
 using MonkeyScheduler.WorkerService.Services;
 using MonkeyScheduler.WorkerService.Tests.Extensions;
 using Moq;
+using Microsoft.Extensions.Logging;
 
 namespace MonkeyScheduler.WorkerService.Tests.Services
 {
@@ -16,6 +17,7 @@ namespace MonkeyScheduler.WorkerService.Tests.Services
         private Mock<IHttpClientFactory> _httpClientFactoryMock;
         private Mock<HttpMessageHandler> _httpMessageHandlerMock;
         private StatusReporterService _service;
+        private Mock<ILogger<StatusReporterService>> _loggerMock;
         private const string SchedulerUrl = "http://test-scheduler";
         private const string WorkerUrl = "http://test-worker";
 
@@ -24,15 +26,22 @@ namespace MonkeyScheduler.WorkerService.Tests.Services
         {
             _httpClientFactoryMock = new Mock<IHttpClientFactory>();
             _httpMessageHandlerMock = new Mock<HttpMessageHandler>();
+            _loggerMock = new Mock<ILogger<StatusReporterService>>();
 
             var httpClient = new HttpClient(_httpMessageHandlerMock.Object);
             _httpClientFactoryMock.Setup(x => x.CreateClient(It.IsAny<string>()))
                 .Returns(httpClient);
 
+            var workerOptions = new MonkeyScheduler.WorkerService.Options.WorkerOptions
+            {
+                SchedulerUrl = SchedulerUrl,
+                WorkerUrl = WorkerUrl
+            };
             _service = new StatusReporterService(
                 _httpClientFactoryMock.Object,
-                SchedulerUrl,
-                WorkerUrl);
+                Microsoft.Extensions.Options.Options.Create(workerOptions),
+                _loggerMock.Object
+            );
         }
 
         [TestMethod]

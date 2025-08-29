@@ -1,3 +1,7 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 using MonkeyScheduler.Core.Models;
 
 namespace MonkeyScheduler.Storage
@@ -33,6 +37,34 @@ namespace MonkeyScheduler.Storage
         public IEnumerable<ScheduledTask> GetAllTasks()
         {
             return _tasks;
+        }
+
+        public Task AddTaskAsync(ScheduledTask task)
+        {
+            AddTask(task);
+            return Task.CompletedTask;
+        }
+
+        public Task UpdateTaskAsync(ScheduledTask task)
+        {
+            UpdateTask(task);
+            return Task.CompletedTask;
+        }
+
+        public Task DeleteTaskAsync(Guid taskId)
+        {
+            DeleteTask(taskId);
+            return Task.CompletedTask;
+        }
+
+        public Task<ScheduledTask?> GetTaskAsync(Guid taskId)
+        {
+            return Task.FromResult(GetTask(taskId));
+        }
+
+        public Task<IEnumerable<ScheduledTask>> GetAllTasksAsync()
+        {
+            return Task.FromResult(GetAllTasks());
         }
     }
 } 

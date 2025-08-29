@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using MonkeyScheduler.SchedulerService.Services;
 
 namespace MonkeyScheduler.SchedulerService.Controllers
 {
@@ -9,14 +10,14 @@ namespace MonkeyScheduler.SchedulerService.Controllers
     [Route("api/worker")]
     public class WorkerApiController : ControllerBase
     {
-        private readonly NodeRegistry _nodeRegistry;
+        private readonly INodeRegistry _nodeRegistry;
 
         /// <summary>
         /// 初始化工作节点 API 控制器
         /// </summary>
         /// <param name="nodeRegistry">节点注册表服务</param>
         /// <exception cref="ArgumentNullException">当 nodeRegistry 为 null 时抛出</exception>
-        public WorkerApiController(NodeRegistry nodeRegistry)
+        public WorkerApiController(INodeRegistry nodeRegistry)
         {
             _nodeRegistry = nodeRegistry ?? throw new ArgumentNullException(nameof(nodeRegistry));
         }

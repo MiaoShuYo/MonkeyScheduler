@@ -15,7 +15,7 @@ namespace MonkeyScheduler.SchedulerService.Test
         public void Setup()
         {
             _mockNodeRegistry = new LoadBalancerMockNodeRegistry();
-            _loadBalancer = new LoadBalancer(_mockNodeRegistry);
+            _loadBalancer = new LoadBalancer(_mockNodeRegistry, new MonkeyScheduler.SchedulerService.Services.Strategies.LeastConnectionStrategy());
             _testTask = new ScheduledTask
             {
                 Id = Guid.NewGuid(),
