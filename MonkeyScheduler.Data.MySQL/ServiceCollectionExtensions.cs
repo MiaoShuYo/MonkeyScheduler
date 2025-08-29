@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Configuration;
+﻿using Microsoft.AspNetCore.Builder;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using MonkeyScheduler.Core.Services;
@@ -23,24 +24,23 @@ public static class ServiceCollectionExtensions
     /// <returns>服务集合</returns>
     public static IServiceCollection AddMySqlDataAccess(this IServiceCollection services, int maxRetryAttempts = 3, TimeSpan? retryDelay = null)
     {
-        string connectionString = services.BuildServiceProvider()
-            .GetService<IConfiguration>()
-            ?.GetValue<string>("MonkeyScheduler:Database:MySQL") ?? string.Empty;
-        if (string.IsNullOrEmpty(connectionString))
-        {
-            throw new ArgumentNullException(nameof(connectionString));
-        }
-
-        var options = new MySqlConnectionOptions
-        {
-            ConnectionString = connectionString,
-            MaxRetryAttempts = maxRetryAttempts,
-            RetryDelay = retryDelay ?? TimeSpan.FromSeconds(1)
-        };
-
-        // 注册数据库上下文为单例服务
+        // 注册数据库上下文为单例服务，延迟到解析时再从 IConfiguration 读取连接串，避免在注册阶段构建临时 ServiceProvider
         services.AddSingleton<MySqlDbContext>(sp =>
         {
+            var configuration = sp.GetRequiredService<IConfiguration>();
+            var connectionString = configuration.GetValue<string>("MonkeyScheduler:Database:MySQL") ?? string.Empty;
+            if (string.IsNullOrEmpty(connectionString))
+            {
+                throw new ArgumentNullException(nameof(connectionString));
+            }
+
+            var options = new MySqlConnectionOptions
+            {
+                ConnectionString = connectionString,
+                MaxRetryAttempts = maxRetryAttempts,
+                RetryDelay = retryDelay ?? TimeSpan.FromSeconds(1)
+            };
+
             var logger = sp.GetService<ILogger<MySqlDbContext>>();
             return new MySqlDbContext(options, logger);
         });
@@ -53,13 +53,6 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<LogRepository>();
         services.AddSingleton<ITaskRepository, MySQLTaskRepository>();
         services.AddSingleton<ITaskExecutionResult, TaskExecutionResultRepository>();
-        
-        // 注册日志记录器提供程序
-        services.AddSingleton<ILoggerProvider>(sp =>
-        {
-            var logRepository = sp.GetRequiredService<LogRepository>();
-            return new MySQLLoggerProvider(logRepository);
-        });
         
         return services;
     }
@@ -102,13 +95,6 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<ITaskRepository, MySQLTaskRepository>();
         services.AddSingleton<ITaskExecutionResult, TaskExecutionResultRepository>();
         
-        // 注册日志记录器提供程序
-        services.AddSingleton<ILoggerProvider>(sp =>
-        {
-            var logRepository = sp.GetRequiredService<LogRepository>();
-            return new MySQLLoggerProvider(logRepository);
-        });
-        
         return services;
     }
 
@@ -146,13 +132,22 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<ITaskRepository, MySQLTaskRepository>();
         services.AddSingleton<ITaskExecutionResult, TaskExecutionResultRepository>();
         
-        // 注册日志记录器提供程序
-        services.AddSingleton<ILoggerProvider>(sp =>
-        {
-            var logRepository = sp.GetRequiredService<LogRepository>();
-            return new MySQLLoggerProvider(logRepository);
-        });
-        
         return services;
+    }
+
+    /// <summary>
+    /// 启用 MySQL 日志记录（在应用启动后调用，避免构建期间阻塞）
+    /// </summary>
+    /// <param name="app">应用程序构建器</param>
+    /// <returns>应用程序构建器</returns>
+    public static IApplicationBuilder UseMySqlLogging(this IApplicationBuilder app)
+    {
+        var loggerFactory = app.ApplicationServices.GetRequiredService<ILoggerFactory>();
+        var logRepository = app.ApplicationServices.GetRequiredService<LogRepository>();
+        var mySqlLoggerProvider = new MySQLLoggerProvider(logRepository);
+        
+        loggerFactory.AddProvider(mySqlLoggerProvider);
+        
+        return app;
     }
 }

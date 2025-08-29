@@ -38,13 +38,13 @@ public class MySQLLogger : ILogger
             Source = _categoryName
         };
 
-        // 使用 Task.Run 并等待其完成，同时使用信号量控制并发访问
-        Task.Run(async () =>
+        // 异步写库且不阻塞调用线程，使用信号量控制并发
+        _ = Task.Run(async () =>
         {
             try
             {
-                await _semaphore.WaitAsync();
-                await _logRepository.AddLogAsync(logEntry);
+                await _semaphore.WaitAsync().ConfigureAwait(false);
+                await _logRepository.AddLogAsync(logEntry).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -55,7 +55,7 @@ public class MySQLLogger : ILogger
             {
                 _semaphore.Release();
             }
-        }).Wait(TimeSpan.FromSeconds(5)); // 等待最多5秒
+        });
     }
 
     // 实现 IDisposable 接口以释放资源

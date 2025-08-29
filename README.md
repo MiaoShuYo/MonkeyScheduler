@@ -1,607 +1,272 @@
- # MonkeyScheduler
+# MonkeyScheduler 使用指南（基于四个项目）
 
-一个高性能的分布式任务调度系统，支持基于 CRON 表达式的定时任务调度、DAG 任务编排、负载均衡和任务重试。
+本指南面向使用解决方案内四个项目的落地实践：`MonkeyScheduler`（核心库）、`MonkeyScheduler.Data.MySQL`（MySQL 数据接入与日志）、`MonkeyScheduler.SchedulerService`（调度服务 API）、`MonkeyScheduler.WorkerService`（工作节点）。忽略仓库内其它 md 文档，以本 README 为准。
 
-## 功能特点
+## 一、整体架构与运行流程
 
-- 基于 CRON 表达式的任务调度
-- 支持秒级和分钟级调度
-- 分布式架构设计
-- 内置负载均衡（支持LeastConnection、RoundRobin、Random等多种策略）
-- 节点健康检查
-- 任务重试机制（支持固定间隔、指数退避、线性增长策略）
-- 可扩展的任务执行器和插件化任务类型
-- 可自定义的任务存储（支持InMemory、MySQL等）
-- 任务执行日志记录
-- 支持任务启用/禁用
-- 异步日志记录
-- 支持多种日志级别（INFO、WARNING、ERROR）
-- 灵活的日志格式化
-- 自动日志清理策略
-- SQLite 和 MySQL 存储后端
-- 高性能设计
-- DAG 任务编排支持（依赖关系管理、循环检测、并行执行）
+- 调度服务 `MonkeyScheduler.SchedulerService`：
+  - 托管核心调度器 `MonkeyScheduler.Core.Scheduler`，周期性扫描待执行任务。
+  - 通过 `ITaskDispatcher` + 负载均衡器将任务分发到在线 Worker 节点。
+  - 接收 Worker 上报的执行结果，并（如配置 MySQL）落库。
+  - 提供任务管理、重试配置、负载均衡、节点注册/心跳等 API。
 
-## 系统要求
+- 工作节点 `MonkeyScheduler.WorkerService`：
+  - 定期向调度服务发送注册与心跳，维持节点在线状态。
+  - 接收调度服务下发的任务并执行，执行完成后回调上报状态。
 
-- .NET 8.0 或更高版本
-- .NET 9.0 支持（可选）
+- 核心库 `MonkeyScheduler`：
+  - 定义任务模型、Cron 解析器、DAG 管理、任务处理器接口及内置处理器（HTTP/Shell/SQL）。
+  - 调度器根据 Cron/重试/DAG 状态决定执行计划，最终通过分发器调用 Worker。
 
-## 项目结构
+- MySQL 数据接入 `MonkeyScheduler.Data.MySQL`（可选）：
+  - 提供 `ITaskRepository`、`ITaskExecutionResult` 的 MySQL 实现与日志持久化。
+  - 通过 `AddMySqlDataAccess(...)` 注入仓储与日志 Provider。
 
-解决方案包含以下项目：
+数据流简述：Scheduler 定时轮询 → 选择可执行任务 → 负载均衡选择 Worker → 调度服务调用 Worker `/api/task/execute` → Worker 执行并 `/api/tasks/status` 回传结果。
 
-1. **MonkeyScheduler**：核心库项目，包含调度系统的所有核心功能实现。
-2. **MonkeyScheduler.Tests**：核心库的单元测试项目。
-3. **MonkeyScheduler.WorkerService**：工作节点服务项目，负责实际执行任务。
-4. **MonkeyScheduler.WorkerService.Tests**：工作节点服务的单元测试项目。
-5. **MonkeyScheduler.SchedulerService**：调度服务项目，负责任务分发和负载均衡。
-6. **MonkeyScheduler.SchedulerService.Tests**：调度服务的单元测试项目。
-7. **MonkeyScheduler.Sample**：示例项目，展示如何使用 MonkeyScheduler 库。
+## 二、快速开始
 
-## 在项目中引入
+### 1. 准备环境
+- .NET 8 SDK
+- MySQL（可选，用于持久化与日志）。若仅尝试内存模式，可跳过 MySQL。
 
-### 1. 通过 NuGet 包管理器
+### 2. 初始化数据库（使用 MySQL 时）
+在 MySQL 中执行初始化脚本（位于 `MonkeyScheduler.Data.MySQL/Scripts/InitializeDatabase.sql`）：
 
-在 Visual Studio 中：
-1. 右键点击项目 -> 管理 NuGet 包
-2. 搜索 "MonkeyScheduler"
-3. 选择并安装需要的包：
-   - MonkeyScheduler（核心库）
-   - MonkeyScheduler.WorkerService（如需部署工作节点）
-   - MonkeyScheduler.SchedulerService（如需部署调度服务）
-    - MonkeyScheduler.Data.MySQL（如需使用 MySQL 存储后端）
-
-### 2. 通过命令行
-
-```bash
-# 安装核心库
-dotnet add package MonkeyScheduler
-
-# 安装工作节点服务
-dotnet add package MonkeyScheduler.WorkerService
-
-# 安装调度服务
-dotnet add package MonkeyScheduler.SchedulerService
-
-# 安装 MySQL 数据存储（可选）
-dotnet add package MonkeyScheduler.Data.MySQL
+```sql
+CREATE TABLE IF NOT EXISTS Logs (...);
+CREATE TABLE IF NOT EXISTS ScheduledTasks (...);
+CREATE TABLE IF NOT EXISTS TaskExecutionResults (...);
 ```
 
-### 3. 修改项目文件
+该脚本会创建日志、计划任务与执行结果三张表，字符集为 `utf8mb4`。
 
-在项目的 .csproj 文件中添加引用：
+### 3. 启动调度服务（SchedulerService）
 
-```xml
-<ItemGroup>
-    <PackageReference Include="MonkeyScheduler" Version="1.1.0-Beta" />
-    <PackageReference Include="MonkeyScheduler.WorkerService" Version="1.1.0-Beta" />
-    <PackageReference Include="MonkeyScheduler.SchedulerService" Version="1.1.0-Beta" />
-    <PackageReference Include="MonkeyScheduler.Data.MySQL" Version="1.1.0-Beta" />
-</ItemGroup>
-```
-
-## 详细使用方法
-
-### 1. 部署调度服务
-
-#### 创建调度服务项目
-
-1. 创建新的 ASP.NET Core Web API 项目
-2. 安装必要的包
-3. 配置 Program.cs：
+关键入口：`MonkeyScheduler.SchedulerService/Program.cs`
 
 ```csharp
 var builder = WebApplication.CreateBuilder(args);
+builder.Services.AddControllers();
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
 
-// 添加调度服务
-builder.Services.AddSchedulerService(options =>
-{
-    options.DatabaseConnectionString = builder.Configuration.GetConnectionString("SchedulerDb");
-    options.HeartbeatInterval = TimeSpan.FromSeconds(30);
-    options.NodeTimeoutInterval = TimeSpan.FromMinutes(2);
-});
-
-// 添加健康检查
-builder.Services.AddHealthChecks()
-    .AddCheck<SchedulerHealthCheck>("scheduler_health");
-
-// 添加负载均衡
-builder.Services.AddLoadBalancer(options =>
-{
-    options.Strategy = LoadBalancerStrategy.RoundRobin;
-    options.RetryCount = 3;
-    options.RetryInterval = TimeSpan.FromSeconds(5);
-});
+// 注册调度服务（默认内存实现）
+builder.Services.AddSchedulerService(builder.Configuration);
 
 var app = builder.Build();
-
-// 配置中间件
+if (app.Environment.IsDevelopment()) { app.UseSwagger(); app.UseSwaggerUI(); }
+app.UseHttpsRedirection();
+app.UseAuthorization();
+app.MapControllers();
+// 启动调度器 + 健康检查端点 /scheduler_health
 app.UseSchedulerService();
-app.MapHealthChecks("/health");
-
 app.Run();
 ```
 
-#### 配置 appsettings.json：
+应用配置 `MonkeyScheduler.SchedulerService/appsettings.json`（示例，注意更新连接串）：
 
 ```json
 {
-  "ConnectionStrings": {
-    "SchedulerDb": "Data Source=scheduler.db"
-  },
-  "SchedulerOptions": {
-    "HeartbeatInterval": "00:00:30",
-    "NodeTimeoutInterval": "00:02:00",
-    "MaxRetryCount": 3
+  "MonkeyScheduler": {
+    "Database": {
+      "MySQL": "Server=127.0.0.1;Database=monkeyscheduler;User=root;Password=your_password;"
+    },
+    "Retry": { "EnableRetry": true, "DefaultMaxRetryCount": 3, "DefaultRetryIntervalSeconds": 60, "DefaultRetryStrategy": "Exponential" },
+    "Scheduler": { "CheckIntervalMilliseconds": 1000, "ExecuteDueTasksOnStartup": true, "MaxConcurrentTasks": 10 },
+    "LoadBalancer": { "Strategy": "LeastConnection" }
   }
 }
 ```
 
-### 2. 部署工作节点
+如需接入 MySQL 仓储与日志，请在宿主（通常是 SchedulerService）里调用：
 
-#### 创建工作节点项目
+```csharp
+// using MonkeyScheduler.Data.MySQL;
+builder.Services.AddMySqlDataAccess(); // 从配置读取连接串：MonkeyScheduler:Database:MySQL
+```
 
-1. 创建新的 ASP.NET Core Web API 项目
-2. 安装必要的包
-3. 配置 Program.cs：
+启动后：
+- Swagger 文档：`/swagger`
+- 健康检查：`/scheduler_health`
+
+### 4. 启动工作节点（WorkerService）
+
+关键入口：`MonkeyScheduler.WorkerService/Program.cs`
 
 ```csharp
 var builder = WebApplication.CreateBuilder(args);
+builder.Services.AddControllers();
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
 
-// 添加工作节点服务
-builder.Services.AddWorkerService(options =>
-{
-    options.SchedulerUrl = builder.Configuration["WorkerOptions:SchedulerUrl"];
-    options.NodeId = builder.Configuration["WorkerOptions:NodeId"];
-    options.HeartbeatInterval = TimeSpan.FromSeconds(30);
-});
+// 绑定 Worker 配置
+builder.Services.Configure<WorkerOptions>(builder.Configuration.GetSection("MonkeyScheduler:Worker"));
 
-// 添加自定义任务执行器
-builder.Services.AddScoped<ITaskExecutor, CustomTaskExecutor>();
-
-// 添加健康检查
-builder.Services.AddHealthChecks()
-    .AddCheck<WorkerHealthCheck>("worker_health");
+// Worker 核心服务
+builder.Services.AddHttpClient();
+builder.Services.AddScoped<ITaskExecutor, DefaultTaskExecutor>();
+builder.Services.AddScoped<IStatusReporterService, StatusReporterService>();
+builder.Services.AddHostedService<NodeHeartbeatService>();
+builder.Services.AddHealthChecks();
 
 var app = builder.Build();
-
-// 配置中间件
-app.UseWorkerService();
+if (app.Environment.IsDevelopment()) { app.UseSwagger(); app.UseSwaggerUI(c => c.RoutePrefix = "swagger"); }
+app.UseHttpsRedirection();
+app.UseAuthorization();
+app.MapControllers();
 app.MapHealthChecks("/health");
-
 app.Run();
 ```
 
-#### 配置 appsettings.json：
+应用配置 `MonkeyScheduler.WorkerService/appsettings.json`（关键字段）：
 
 ```json
 {
-  "WorkerOptions": {
-    "SchedulerUrl": "http://localhost:5000",
-    "NodeId": "worker-1",
-    "HeartbeatInterval": "00:00:30"
+  "MonkeyScheduler": {
+    "Worker": {
+      "WorkerUrl": "http://localhost:4058",           // 当前 Worker 对外可访问的根地址
+      "SchedulerUrl": "http://localhost:4057",        // 调度服务地址
+      "HeartbeatIntervalSeconds": 30,
+      "MaxConcurrentTasks": 5,
+      "AutoRegisterToScheduler": true
+    }
   }
 }
 ```
 
-### 3. 实现自定义任务执行器
+Worker 启动后动作：
+- POST `${SchedulerUrl}/api/worker/register`，Body 为字符串 `WorkerUrl`。
+- 定期 POST `${SchedulerUrl}/api/worker/heartbeat`，Body 同上。
+- 接收任务：调度服务会调用 `POST ${WorkerUrl}/api/task/execute`。
+- 上报结果：Worker 调用 `POST ${SchedulerUrl}/api/tasks/status`。
+
+## 三、核心功能与 API
+
+### 1) 任务管理（调度服务）
+- 创建任务：`POST /api/tasks`
+  - Body（示例）：
+  ```json
+  {
+    "name": "demo-http",
+    "description": "simple http task",
+    "cronExpression": "*/30 * * * * *",
+    "taskType": "http",
+    "taskParameters": "{ \"url\": \"https://httpbin.org/get\", \"method\": \"GET\" }",
+    "enableRetry": true,
+    "maxRetryCount": 3,
+    "retryIntervalSeconds": 60,
+    "retryStrategy": "Exponential",
+    "timeoutSeconds": 30
+  }
+  ```
+- 启用任务：`PUT /api/tasks/{id}/enable`
+- 禁用任务：`PUT /api/tasks/{id}/disable`
+- 查询任务：`GET /api/tasks`
+- 查看详情：`GET /api/tasks/{id}`
+- 删除任务：`DELETE /api/tasks/{id}`
+- 上报结果（由 Worker 调用）：`POST /api/tasks/status`
+
+重试相关：
+- 获取重试信息：`GET /api/tasks/{id}/retry-info`
+- 手动重试：`POST /api/tasks/{id}/retry`
+- 重置重试状态：`POST /api/tasks/{id}/reset-retry`
+- 更新重试配置（针对单任务）：`PUT /api/tasks/{id}/retry-config`
+
+全局重试配置：
+- 获取：`GET /api/retryconfiguration`
+- 更新：`PUT /api/retryconfiguration`
+- 策略枚举：`GET /api/retryconfiguration/strategies`
+- 计算试算：`GET /api/retryconfiguration/test-intervals?baseInterval=60&strategy=Exponential&maxRetries=3`
+
+### 2) 负载均衡与节点
+- 查询策略与详情：`GET /api/loadbalancing/strategies`、`GET /api/loadbalancing/strategies/{name}`
+- 查看当前状态与节点负载：`GET /api/loadbalancing/status`、`GET /api/loadbalancing/node-loads`
+- 更新策略配置：`PUT /api/loadbalancing/configuration`（Body 为键值对）
+- 注册自定义策略：`POST /api/loadbalancing/register-strategy`
+- 节点注册与心跳（由 Worker 调用）：`POST /api/worker/register`、`POST /api/worker/heartbeat`（Body: 字符串 `nodeUrl`）
+
+### 3) 任务类型与参数校验
+- 列出支持的任务类型：`GET /api/taskhandlers/types`
+- 获取处理器配置：`GET /api/taskhandlers/config/{taskType}`
+- 校验参数：`POST /api/taskhandlers/validate/{taskType}`（Body: 任意对象）
+- 获取所有处理器配置：`GET /api/taskhandlers/configs`
+- 检查类型是否支持：`GET /api/taskhandlers/supported/{taskType}`
+
+内置处理器与示例参数：
+- http：
+  ```json
+  { "url": "https://httpbin.org/post", "method": "POST", "body": "{\"hello\":\"world\"}", "headers": {"Content-Type":"application/json"}, "timeout": 30 }
+  ```
+- shell：
+  ```json
+  { "command": "echo hello", "workingDirectory": "C:/", "timeout": 60 }
+  ```
+- sql：
+  ```json
+  { "connectionString": "Server=...;Database=...;User=...;Password=...;", "sqlScript": "SELECT 1", "timeout": 60 }
+  ```
+
+## 四、DAG（可选）
+
+调度器支持 DAG 依赖与工作流，`Scheduler` 会在执行时通过 `IDagDependencyChecker` 与 `IDagExecutionManager` 判断/触发上下游。若任务为 DAG 任务（如设置 `IsDagTask`、`DagWorkflowId`、依赖等），调度器会在依赖满足后触发后续任务。
+
+要点：
+- DAG 校验与启动通过 `Scheduler` 暴露的方法完成（内部由服务管理）。
+- 普通定时任务与 DAG 任务可并存。
+
+## 五、使用 MySQL 仓储与日志
+
+在调度服务启动时调用扩展：
 
 ```csharp
-public class CustomTaskExecutor : ITaskExecutor
-{
-    private readonly ILogger<CustomTaskExecutor> _logger;
-    private readonly IHttpClientFactory _httpClientFactory;
-    private readonly string _apiBaseUrl;
-
-    public CustomTaskExecutor(
-        ILogger<CustomTaskExecutor> logger,
-        IHttpClientFactory httpClientFactory,
-        IConfiguration configuration)
-    {
-        _logger = logger;
-        _httpClientFactory = httpClientFactory;
-        _apiBaseUrl = configuration["ApiBaseUrl"];
-    }
-
-    public async Task ExecuteAsync(ScheduledTask task, Func<TaskExecutionResult, Task> callback)
-    {
-        try
-        {
-            _logger.LogInformation($"开始执行任务: {task.Name}");
-            
-            var startTime = DateTime.UtcNow;
-            var client = _httpClientFactory.CreateClient();
-            
-            // 实现具体的任务执行逻辑
-            var response = await client.PostAsync($"{_apiBaseUrl}/api/tasks/{task.Id}/execute", null);
-            
-            var result = new TaskExecutionResult
-            {
-                TaskId = task.Id,
-                Status = response.IsSuccessStatusCode 
-                    ? TaskExecutionStatus.Success 
-                    : TaskExecutionStatus.Failed,
-                StartTime = startTime,
-                EndTime = DateTime.UtcNow,
-                ErrorMessage = response.IsSuccessStatusCode 
-                    ? null 
-                    : await response.Content.ReadAsStringAsync()
-            };
-
-            await callback(result);
-            _logger.LogInformation($"任务执行完成: {task.Name}");
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, $"任务执行失败: {task.Name}");
-            
-            var result = new TaskExecutionResult
-            {
-                TaskId = task.Id,
-                Status = TaskExecutionStatus.Failed,
-                StartTime = DateTime.UtcNow,
-                EndTime = DateTime.UtcNow,
-                ErrorMessage = ex.Message
-            };
-
-            await callback(result);
-            throw;
-        }
-    }
-}
+// Program.cs
+using MonkeyScheduler.Data.MySQL;
+builder.Services.AddMySqlDataAccess();
 ```
 
-### 4. 添加和管理任务
+或显式传入连接串/选项：
 
 ```csharp
-[ApiController]
-[Route("api/[controller]")]
-public class TasksController : ControllerBase
-{
-    private readonly IScheduler _scheduler;
-    private readonly ITaskRepository _taskRepository;
-
-    public TasksController(IScheduler scheduler, ITaskRepository taskRepository)
-    {
-        _scheduler = scheduler;
-        _taskRepository = taskRepository;
-    }
-
-    [HttpPost]
-    public async Task<IActionResult> CreateTask(CreateTaskRequest request)
-    {
-        var task = new ScheduledTask
-        {
-            Id = Guid.NewGuid(),
-            Name = request.Name,
-            CronExpression = request.CronExpression,
-            IsEnabled = true,
-            NextRunTime = DateTime.UtcNow
-        };
-
-        await _taskRepository.AddTaskAsync(task);
-        return Ok(task);
-    }
-
-    [HttpPut("{id}/enable")]
-    public async Task<IActionResult> EnableTask(Guid id)
-    {
-        var task = await _taskRepository.GetTaskAsync(id);
-        if (task == null) return NotFound();
-
-        task.IsEnabled = true;
-        await _taskRepository.UpdateTaskAsync(task);
-        return Ok();
-    }
-
-    [HttpPut("{id}/disable")]
-    public async Task<IActionResult> DisableTask(Guid id)
-    {
-        var task = await _taskRepository.GetTaskAsync(id);
-        if (task == null) return NotFound();
-
-        task.IsEnabled = false;
-        await _taskRepository.UpdateTaskAsync(task);
-        return Ok();
-    }
-
-    [HttpGet]
-    public async Task<IActionResult> GetTasks()
-    {
-        var tasks = await _taskRepository.GetTasksAsync();
-        return Ok(tasks);
-    }
-}
+builder.Services.AddMySqlDataAccess("Server=...;Database=...;User=...;Password=...");
+// 或
+builder.Services.AddMySqlDataAccess(new MySqlConnectionOptions { ConnectionString = "...", MaxRetryAttempts = 3 });
 ```
 
-### 5. 监控和日志
+效果：
+- 用 MySQL 实现替换默认内存的 `ITaskRepository` 与 `ITaskExecutionResult`。
+- 注入 `ILoggerProvider`，将日志写入表 `Logs`。
 
-#### 配置日志
+## 六、本地开发与运行
 
-```csharp
-builder.Services.AddLogging(logging =>
-{
-    logging.AddConsole();
-    logging.AddDebug();
-    logging.AddEventLog();
-    
-    // 配置日志级别
-    logging.SetMinimumLevel(LogLevel.Information);
-});
+1) 还原依赖并编译：
+```bash
+dotnet restore
+dotnet build -c Debug
 ```
 
-#### 查看任务执行历史
+2) 先启动 SchedulerService（默认端口示例假设为 `http://localhost:4057`），再启动 WorkerService（`http://localhost:4058`）。确保两端口在配置中一致。
 
-```csharp
-[ApiController]
-[Route("api/[controller]")]
-public class TaskHistoryController : ControllerBase
-{
-    private readonly ITaskExecutionLogRepository _logRepository;
+3) 打开调度服务 Swagger：创建任务并观察 Worker 控制台与数据库（如启用 MySQL）。
 
-    public TaskHistoryController(ITaskExecutionLogRepository logRepository)
-    {
-        _logRepository = logRepository;
-    }
+## 七、常见问题（FAQ）
 
-    [HttpGet("task/{taskId}")]
-    public async Task<IActionResult> GetTaskHistory(Guid taskId)
-    {
-        var logs = await _logRepository.GetTaskExecutionLogsAsync(taskId);
-        return Ok(logs);
-    }
-}
-```
+- 如何确认节点在线？
+  - 访问 `GET /api/loadbalancing/status` 查看 `TotalNodes` 与 `NodeLoads`。
+  - Worker 健康检查：`GET {WorkerUrl}/health`。
 
-### 6. DAG 任务编排
+- 收不到回调/结果？
+  - 检查 `WorkerUrl` 是否为调度服务可达地址（容器/跨机部署时尤其注意）。
+  - 检查防火墙与反向代理转发规则。
 
-MonkeyScheduler 支持 DAG（有向无环图）任务编排，允许定义任务依赖关系。
+- SQL 任务连不上数据库？
+  - 在 SQL 任务参数中使用正确的 `connectionString`。与 `AddMySqlDataAccess` 无直接耦合，彼此独立。
 
-示例：
-```csharp
-var taskA = new ScheduledTask { Id = Guid.NewGuid(), Name = "Task A" };
-var taskB = new ScheduledTask { Id = Guid.NewGuid(), Name = "Task B", Dependencies = new List<Guid> { taskA.Id } };
+- 想扩展任务类型？
+  - 实现 `ITaskHandler` 并通过 `TaskHandlerFactory.RegisterHandler<T>("type")` 注册即可；也可按现有 `HttpTaskHandler`、`ShellTaskHandler`、`SqlTaskHandler` 参考实现。
 
-// 添加到调度器
-await taskRepository.AddTaskAsync(taskA);
-await taskRepository.AddTaskAsync(taskB);
+## 八、许可
 
-// 启动 DAG 工作流
-await dagExecutionManager.StartWorkflowAsync(workflowId, new List<ScheduledTask> { taskA, taskB });
-```
+MIT
 
-### 7. 负载均衡配置
 
-支持多种策略配置：
-
-```csharp
-builder.Services.AddLoadBalancer(options =>
-{
-    options.Strategy = LoadBalancingStrategy.LeastConnection;
-    options.MaxConnectionsPerNode = 100;
-});
-```
-
-### 8. 任务重试配置
-
-示例任务重试配置：
-
-```csharp
-var task = new ScheduledTask
-{
-    Name = "Retry Task",
-    EnableRetry = true,
-    MaxRetryCount = 5,
-    RetryStrategy = RetryStrategy.Exponential,
-    RetryIntervalSeconds = 60
-};
-```
-
-### 9. 任务类型插件
-
-支持自定义任务类型：
-
-```csharp
-public class CustomTaskHandler : ITaskHandler
-{
-    public async Task<TaskExecutionResult> HandleAsync(ScheduledTask task, object? parameters = null)
-    {
-        // 自定义任务逻辑
-    }
-}
-```
-
-### 10. 自定义任务存储
-
-实现 `ITaskRepository` 接口来自定义任务存储：
-
-```csharp
-public class CustomTaskRepository : ITaskRepository
-{
-    public async Task<IEnumerable<ScheduledTask>> GetTasksAsync()
-    {
-        // 自定义实现：从文件或自定义数据库读取任务
-        return new List<ScheduledTask>(); // 示例返回空列表
-    }
-
-    public async Task<ScheduledTask> GetTaskAsync(Guid id)
-    {
-        // 自定义实现：根据 ID 获取任务
-        return new ScheduledTask(); // 示例返回空任务
-    }
-
-    // ... 实现其他方法，如 AddTaskAsync, UpdateTaskAsync 等
-}
-```
-
-在服务注册中添加：
-```csharp
-builder.Services.AddSingleton<ITaskRepository, CustomTaskRepository>();
-```
-
-### 11. 自定义日志格式化
-
-实现 `ILogFormatter` 接口来自定义日志格式：
-
-```csharp
-public class CustomLogFormatter : ILogFormatter
-{
-    public string Format(string level, string message)
-    {
-        return $"[{DateTime.UtcNow:yyyy-MM-dd HH:mm:ss}] [{level}] {message}"; // 自定义格式
-    }
-}
-```
-
-在日志配置中注册：
-```csharp
-builder.Services.AddSingleton<ILogFormatter, CustomLogFormatter>();
-```
-
-### 12. 自定义节点注册与心跳
-
-扩展 `INodeRegistry` 接口或修改 `NodeHeartbeatService` 来自定义心跳逻辑：
-
-```csharp
-public class CustomNodeRegistry : INodeRegistry
-{
-    public void Register(string nodeUrl)
-    {
-        // 自定义注册逻辑，例如添加节点元数据
-    }
-
-    public void Heartbeat(string nodeUrl)
-    {
-        // 自定义心跳逻辑，例如记录负载指标
-    }
-
-    // ... 实现其他方法
-}
-```
-
-在服务注册中添加：
-```csharp
-builder.Services.AddSingleton<INodeRegistry, CustomNodeRegistry>();
-```
-
-### 13. 自定义 API 扩展
-
-扩展现有控制器添加自定义端点：
-
-```csharp
-[ApiController]
-[Route("api/[controller]")]
-public class CustomTasksController : TasksController
-{
-    [HttpGet("custom")]
-    public async Task<IActionResult> GetCustomTasks()
-    {
-        // 自定义逻辑：返回特定任务列表
-        return Ok(await _taskRepository.GetTasksAsync());
-    }
-}
-```
-
-在 Program.cs 中注册控制器。
-
-### 14. 自定义 UI
-
-如果使用 Blazor 或 Vue.js 等前端框架，自定义 UI 页面：
-
-示例（Blazor 组件）：
-```razor
-@page "/custom-dashboard"
-<h1>自定义任务仪表盘</h1>
-<!-- 自定义 UI 元素，如图表或按钮 -->
-<button @onclick="LoadTasks">加载任务</button>
-```
-
-连接到 API 端点以获取数据。详细 UI 自定义需参考前端项目。
-
-## CRON 表达式格式
-
-MonkeyScheduler 支持两种 CRON 表达式格式：
-
-1. **标准 5 字段格式**（分钟 时 日 月 周）：
-   ```
-   */5 * * * *     # 每5分钟执行一次
-   0 */2 * * *     # 每2小时执行一次
-   0 0 * * *       # 每天午夜执行
-   ```
-
-2. **扩展 6 字段格式**（秒 分 时 日 月 周）：
-   ```
-   */5 * * * * *   # 每5秒执行一次
-   0 */30 * * * *  # 每30秒执行一次
-   ```
-
-## 常见问题解答
-
-### 1. 如何处理任务执行超时？
-
-在任务执行器中实现超时控制：
-
-```csharp
-public async Task ExecuteAsync(ScheduledTask task, Func<TaskExecutionResult, Task> callback)
-{
-    using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(5)); // 5分钟超时
-    try
-    {
-        await ExecuteWithTimeoutAsync(task, callback, cts.Token);
-    }
-    catch (OperationCanceledException)
-    {
-        await callback(new TaskExecutionResult
-        {
-            TaskId = task.Id,
-            Status = TaskExecutionStatus.Timeout,
-            ErrorMessage = "任务执行超时"
-        });
-    }
-}
-```
-
-### 2. 如何实现自定义存储？
-
-实现 `ITaskRepository` 接口：
-
-```csharp
-public class CustomTaskRepository : ITaskRepository
-{
-    // 实现接口方法
-    public Task<IEnumerable<ScheduledTask>> GetTasksAsync()
-    {
-        // 自定义实现
-    }
-
-    public Task<ScheduledTask> GetTaskAsync(Guid id)
-    {
-        // 自定义实现
-    }
-
-    // ... 其他方法实现
-}
-```
-
-### 3. 如何实现自定义负载均衡策略？
-
-实现 `ILoadBalancer` 接口：
-
-```csharp
-public class CustomLoadBalancer : ILoadBalancer
-{
-    public Task<string> SelectNodeAsync(IEnumerable<string> nodes)
-    {
-        // 自定义节点选择逻辑
-    }
-}
-```
-
-## 贡献
-
-欢迎提交 Issue 和 Pull Request 来帮助改进这个项目。
-
-## 许可证
-
-本项目采用 MIT 许可证。
