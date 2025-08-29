@@ -36,11 +36,16 @@ app.MapControllers();         // 映射控制器路由
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();     // 启用Swagger
-    app.UseSwaggerUI();   // 启用Swagger UI
+    app.UseSwaggerUI(c =>
+    {
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "API v1");
+        c.RoutePrefix = "swagger";
+    });
 }
 
 app.UseHttpsRedirection();
 // 添加健康检查端点
 app.UseWorkerService();
+app.UseMySqlLogging();
 
 app.Run();

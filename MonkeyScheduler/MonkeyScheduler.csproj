@@ -4,7 +4,7 @@
     <TargetFrameworks>net8.0;net9.0</TargetFrameworks>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <Version>1.1.0</Version>
+    <Version>1.1.1</Version>
     <PackageId>MonkeyScheduler</PackageId>
     <Authors>MiaoShu</Authors>
     <Company>MiaoShu</Company>
@@ -14,7 +14,7 @@
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageTags>scheduler;cron;task;job;logging</PackageTags>
-    <PackageReleaseNotes>1.1.0</PackageReleaseNotes>
+    <PackageReleaseNotes>1.1.1</PackageReleaseNotes>
     <PackageIcon>logo.png</PackageIcon>
   </PropertyGroup>
 

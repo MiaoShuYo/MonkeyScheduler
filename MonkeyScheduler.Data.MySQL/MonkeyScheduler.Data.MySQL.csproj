@@ -4,7 +4,7 @@
     <TargetFrameworks>net8.0;net9.0</TargetFrameworks>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <Version>1.1.0</Version>
+    <Version>1.1.1</Version>
     <PackageId>MonkeyScheduler.Data.MySQL</PackageId>
     <Authors>MiaoShu</Authors>
     <Company>MiaoShu</Company>
@@ -38,6 +38,12 @@
 
   <ItemGroup>
     <ProjectReference Include="..\MonkeyScheduler\MonkeyScheduler.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="Microsoft.AspNetCore.Http.Abstractions">
+      <HintPath>C:\Program Files\dotnet\shared\Microsoft.AspNetCore.App\8.0.19\Microsoft.AspNetCore.Http.Abstractions.dll</HintPath>
+    </Reference>
   </ItemGroup>
 
 </Project>
