@@ -94,8 +94,9 @@ namespace MonkeyScheduler.Core.Services.Handlers
                 var sqlParams = ParseSqlParameters(parameters);
                 return !string.IsNullOrEmpty(sqlParams.SqlScript) && !string.IsNullOrEmpty(sqlParams.ConnectionString);
             }
-            catch
+            catch (Exception ex)
             {
+                _logger.LogWarning(ex, "SQL任务参数验证失败");
                 return false;
             }
         }

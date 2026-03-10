@@ -13,6 +13,7 @@ namespace MonkeyScheduler.Core.Services
         private readonly ILogger<DagExecutionManager> _logger;
         private readonly Dictionary<Guid, WorkflowExecutionStatus> _workflowStatuses = new();
         private readonly Dictionary<Guid, Dictionary<Guid, DagExecutionStatus>> _taskStatuses = new();
+        private readonly object _stateLock = new();
 
         public DagExecutionManager(IDagDependencyChecker dependencyChecker, ILogger<DagExecutionManager> logger)
         {
@@ -70,8 +71,11 @@ namespace MonkeyScheduler.Core.Services
                     taskStatusDict[task.Id] = DagExecutionStatus.Waiting;
                 }
 
-                _workflowStatuses[workflowId] = workflowStatus;
-                _taskStatuses[workflowId] = taskStatusDict;
+                lock (_stateLock)
+                {
+                    _workflowStatuses[workflowId] = workflowStatus;
+                    _taskStatuses[workflowId] = taskStatusDict;
+                }
 
                 // 启动入口任务
                 var entryTasks = workflowTasks.Where(t => t.Dependencies == null || !t.Dependencies.Any()).ToList();
@@ -82,7 +86,10 @@ namespace MonkeyScheduler.Core.Services
                     if (await CanExecuteTaskAsync(entryTask, workflowTasks))
                     {
                         entryTask.DagStatus = DagExecutionStatus.Ready;
-                        taskStatusDict[entryTask.Id] = DagExecutionStatus.Ready;
+                        lock (_stateLock)
+                        {
+                            taskStatusDict[entryTask.Id] = DagExecutionStatus.Ready;
+                        }
                         startedCount++;
                     }
                 }
@@ -126,9 +133,12 @@ namespace MonkeyScheduler.Core.Services
                 if (completedTask.DagWorkflowId.HasValue)
                 {
                     var workflowId = completedTask.DagWorkflowId.Value;
-                    if (_taskStatuses.ContainsKey(workflowId))
+                    lock (_stateLock)
                     {
-                        _taskStatuses[workflowId][completedTaskId] = completedTask.DagStatus;
+                        if (_taskStatuses.ContainsKey(workflowId))
+                        {
+                            _taskStatuses[workflowId][completedTaskId] = completedTask.DagStatus;
+                        }
                     }
                 }
 
@@ -207,9 +217,12 @@ namespace MonkeyScheduler.Core.Services
         /// </summary>
         public async Task<WorkflowExecutionStatus> GetWorkflowStatusAsync(Guid workflowId)
         {
-            if (_workflowStatuses.ContainsKey(workflowId))
+            lock (_stateLock)
             {
-                return _workflowStatuses[workflowId];
+                if (_workflowStatuses.ContainsKey(workflowId))
+                {
+                    return _workflowStatuses[workflowId];
+                }
             }
 
             return new WorkflowExecutionStatus
@@ -224,11 +237,14 @@ namespace MonkeyScheduler.Core.Services
         /// </summary>
         public async Task<bool> PauseWorkflowAsync(Guid workflowId)
         {
-            if (_workflowStatuses.ContainsKey(workflowId))
+            lock (_stateLock)
             {
-                _workflowStatuses[workflowId].Status = WorkflowStatus.Paused;
-                _logger.LogInformation("工作流 {WorkflowId} 已暂停", workflowId);
-                return true;
+                if (_workflowStatuses.ContainsKey(workflowId))
+                {
+                    _workflowStatuses[workflowId].Status = WorkflowStatus.Paused;
+                    _logger.LogInformation("工作流 {WorkflowId} 已暂停", workflowId);
+                    return true;
+                }
             }
 
             return false;
@@ -239,11 +255,14 @@ namespace MonkeyScheduler.Core.Services
         /// </summary>
         public async Task<bool> ResumeWorkflowAsync(Guid workflowId)
         {
-            if (_workflowStatuses.ContainsKey(workflowId))
+            lock (_stateLock)
             {
-                _workflowStatuses[workflowId].Status = WorkflowStatus.Running;
-                _logger.LogInformation("工作流 {WorkflowId} 已恢复", workflowId);
-                return true;
+                if (_workflowStatuses.ContainsKey(workflowId))
+                {
+                    _workflowStatuses[workflowId].Status = WorkflowStatus.Running;
+                    _logger.LogInformation("工作流 {WorkflowId} 已恢复", workflowId);
+                    return true;
+                }
             }
 
             return false;
@@ -254,15 +273,47 @@ namespace MonkeyScheduler.Core.Services
         /// </summary>
         public async Task<bool> CancelWorkflowAsync(Guid workflowId)
         {
-            if (_workflowStatuses.ContainsKey(workflowId))
+            lock (_stateLock)
             {
-                _workflowStatuses[workflowId].Status = WorkflowStatus.Cancelled;
-                _workflowStatuses[workflowId].EndTime = DateTime.UtcNow;
-                _logger.LogInformation("工作流 {WorkflowId} 已取消", workflowId);
-                return true;
+                if (_workflowStatuses.ContainsKey(workflowId))
+                {
+                    _workflowStatuses[workflowId].Status = WorkflowStatus.Cancelled;
+                    _workflowStatuses[workflowId].EndTime = DateTime.UtcNow;
+                    _logger.LogInformation("工作流 {WorkflowId} 已取消", workflowId);
+                    return true;
+                }
             }
 
             return false;
+        }
+
+        /// <summary>
+        /// 清理已完成、已失败或已取消的工作流状态，释放内存
+        /// </summary>
+        public void CleanupFinishedWorkflows()
+        {
+            List<Guid> finishedWorkflowIds;
+            lock (_stateLock)
+            {
+                finishedWorkflowIds = _workflowStatuses
+                    .Where(kvp => kvp.Value.Status == WorkflowStatus.Completed
+                               || kvp.Value.Status == WorkflowStatus.Failed
+                               || kvp.Value.Status == WorkflowStatus.PartiallyFailed
+                               || kvp.Value.Status == WorkflowStatus.Cancelled)
+                    .Select(kvp => kvp.Key)
+                    .ToList();
+
+                foreach (var workflowId in finishedWorkflowIds)
+                {
+                    _workflowStatuses.Remove(workflowId);
+                    _taskStatuses.Remove(workflowId);
+                }
+            }
+
+            if (finishedWorkflowIds.Count > 0)
+            {
+                _logger.LogDebug("已清理 {Count} 个已完成的工作流状态", finishedWorkflowIds.Count);
+            }
         }
 
         /// <summary>
@@ -270,39 +321,45 @@ namespace MonkeyScheduler.Core.Services
         /// </summary>
         private async Task UpdateWorkflowStatusAsync(Guid workflowId, IEnumerable<ScheduledTask> allTasks)
         {
-            if (!_workflowStatuses.ContainsKey(workflowId))
-                return;
-
-            var workflowStatus = _workflowStatuses[workflowId];
-            var workflowTasks = allTasks.Where(t => t.DagWorkflowId == workflowId).ToList();
-            var taskStatusDict = _taskStatuses.GetValueOrDefault(workflowId, new Dictionary<Guid, DagExecutionStatus>());
-
-            // 统计各种状态的任务数量
-            workflowStatus.CompletedTasks = workflowTasks.Count(t => t.DagStatus == DagExecutionStatus.Completed);
-            workflowStatus.FailedTasks = workflowTasks.Count(t => t.DagStatus == DagExecutionStatus.Failed);
-            workflowStatus.RunningTasks = workflowTasks.Count(t => t.DagStatus == DagExecutionStatus.Running);
-            workflowStatus.WaitingTasks = workflowTasks.Count(t => t.DagStatus == DagExecutionStatus.Waiting);
-            workflowStatus.SkippedTasks = workflowTasks.Count(t => t.DagStatus == DagExecutionStatus.Skipped);
-
-            // 判断工作流状态
-            if (workflowStatus.Status == WorkflowStatus.Running)
+            WorkflowExecutionStatus? workflowStatus;
+            lock (_stateLock)
             {
-                if (workflowStatus.FailedTasks > 0 && workflowStatus.CompletedTasks + workflowStatus.FailedTasks == workflowStatus.TotalTasks)
-                {
-                    workflowStatus.Status = workflowStatus.FailedTasks == workflowStatus.TotalTasks ? 
-                        WorkflowStatus.Failed : WorkflowStatus.PartiallyFailed;
-                    workflowStatus.EndTime = DateTime.UtcNow;
-                }
-                else if (workflowStatus.CompletedTasks == workflowStatus.TotalTasks)
-                {
-                    workflowStatus.Status = WorkflowStatus.Completed;
-                    workflowStatus.EndTime = DateTime.UtcNow;
-                }
+                if (!_workflowStatuses.ContainsKey(workflowId))
+                    return;
+                workflowStatus = _workflowStatuses[workflowId];
             }
 
-            _logger.LogDebug("工作流 {WorkflowId} 状态更新: 完成={Completed}, 失败={Failed}, 运行中={Running}, 等待={Waiting}",
-                workflowId, workflowStatus.CompletedTasks, workflowStatus.FailedTasks, 
-                workflowStatus.RunningTasks, workflowStatus.WaitingTasks);
+            var workflowTasks = allTasks.Where(t => t.DagWorkflowId == workflowId).ToList();
+
+            lock (_stateLock)
+            {
+                // 统计各种状态的任务数量
+                workflowStatus.CompletedTasks = workflowTasks.Count(t => t.DagStatus == DagExecutionStatus.Completed);
+                workflowStatus.FailedTasks = workflowTasks.Count(t => t.DagStatus == DagExecutionStatus.Failed);
+                workflowStatus.RunningTasks = workflowTasks.Count(t => t.DagStatus == DagExecutionStatus.Running);
+                workflowStatus.WaitingTasks = workflowTasks.Count(t => t.DagStatus == DagExecutionStatus.Waiting);
+                workflowStatus.SkippedTasks = workflowTasks.Count(t => t.DagStatus == DagExecutionStatus.Skipped);
+
+                // 判断工作流状态
+                if (workflowStatus.Status == WorkflowStatus.Running)
+                {
+                    if (workflowStatus.FailedTasks > 0 && workflowStatus.CompletedTasks + workflowStatus.FailedTasks == workflowStatus.TotalTasks)
+                    {
+                        workflowStatus.Status = workflowStatus.FailedTasks == workflowStatus.TotalTasks ?
+                            WorkflowStatus.Failed : WorkflowStatus.PartiallyFailed;
+                        workflowStatus.EndTime = DateTime.UtcNow;
+                    }
+                    else if (workflowStatus.CompletedTasks == workflowStatus.TotalTasks)
+                    {
+                        workflowStatus.Status = WorkflowStatus.Completed;
+                        workflowStatus.EndTime = DateTime.UtcNow;
+                    }
+                }
+
+                _logger.LogDebug("工作流 {WorkflowId} 状态更新: 完成={Completed}, 失败={Failed}, 运行中={Running}, 等待={Waiting}",
+                    workflowId, workflowStatus.CompletedTasks, workflowStatus.FailedTasks,
+                    workflowStatus.RunningTasks, workflowStatus.WaitingTasks);
+            }
         }
     }
 }

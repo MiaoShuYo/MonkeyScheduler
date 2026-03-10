@@ -39,7 +39,7 @@ namespace MonkeyScheduler.Core.Services.Handlers
                 _logger.LogInformation("执行Shell任务: {TaskName}, 命令: {Command}", 
                     task.Name, shellParams.Command);
 
-                var process = new Process();
+                using var process = new Process();
                 var startInfo = new ProcessStartInfo();
 
                 // 根据操作系统设置不同的Shell
@@ -125,8 +125,9 @@ namespace MonkeyScheduler.Core.Services.Handlers
                 var shellParams = ParseShellParameters(parameters);
                 return !string.IsNullOrEmpty(shellParams.Command);
             }
-            catch
+            catch (Exception ex)
             {
+                _logger.LogWarning(ex, "Shell任务参数验证失败");
                 return false;
             }
         }

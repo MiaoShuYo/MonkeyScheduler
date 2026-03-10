@@ -135,7 +135,7 @@ namespace MonkeyScheduler.Data.MySQL.Repositories
                     sql,
                     new { StartTime = startTime, EndTime = endTime, Level = level });
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 throw;
             }
