@@ -355,11 +355,11 @@ namespace MonkeyScheduler.Core.Services
                         workflowStatus.EndTime = DateTime.UtcNow;
                     }
                 }
-            }
 
-            _logger.LogDebug("工作流 {WorkflowId} 状态更新: 完成={Completed}, 失败={Failed}, 运行中={Running}, 等待={Waiting}",
-                workflowId, workflowStatus.CompletedTasks, workflowStatus.FailedTasks,
-                workflowStatus.RunningTasks, workflowStatus.WaitingTasks);
+                _logger.LogDebug("工作流 {WorkflowId} 状态更新: 完成={Completed}, 失败={Failed}, 运行中={Running}, 等待={Waiting}",
+                    workflowId, workflowStatus.CompletedTasks, workflowStatus.FailedTasks,
+                    workflowStatus.RunningTasks, workflowStatus.WaitingTasks);
+            }
         }
     }
 }
