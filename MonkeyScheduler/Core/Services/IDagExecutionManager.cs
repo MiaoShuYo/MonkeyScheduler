@@ -60,6 +60,11 @@ namespace MonkeyScheduler.Core.Services
         /// <param name="workflowId">工作流ID</param>
         /// <returns>操作结果</returns>
         Task<bool> CancelWorkflowAsync(Guid workflowId);
+        
+        /// <summary>
+        /// 清理已完成、已失败或已取消的工作流状态，释放内存
+        /// </summary>
+        void CleanupFinishedWorkflows();
     }
     
     /// <summary>

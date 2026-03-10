@@ -81,17 +81,27 @@ namespace MonkeyScheduler.WorkerService.Services
                 {
                     // 发送心跳包
                     await SendHeartbeatWithRetryAsync(httpClient, stoppingToken);
+                    _logger.LogInformation("心跳发送成功");
+                }
+                catch (OperationCanceledException)
+                {
+                    break;
                 }
                 catch (Exception ex)
                 {
-                    // 记录心跳发送失败的错误
+                    // 记录心跳发送失败的错误，继续循环以便下次重试
                     _logger.LogError(ex, "心跳发送失败: {Message}", ex.Message);
-                    throw new Exception("心跳发送失败", ex);
                 }
 
                 // 等待下一次心跳间隔
-                await Task.Delay(_heartbeatInterval, stoppingToken);
-                _logger.LogInformation("心跳发送成功");
+                try
+                {
+                    await Task.Delay(_heartbeatInterval, stoppingToken);
+                }
+                catch (OperationCanceledException)
+                {
+                    break;
+                }
             }
         }
 

@@ -42,8 +42,8 @@ namespace MonkeyScheduler.Core.Services.Handlers
                 _logger.LogInformation("执行HTTP任务: {TaskName}, URL: {Url}, Method: {Method}", 
                     task.Name, httpParams.Url, httpParams.Method);
 
-                var request = CreateHttpRequest(httpParams);
-                var response = await client.SendAsync(request);
+                using var request = CreateHttpRequest(httpParams);
+                using var response = await client.SendAsync(request);
 
                 result.Status = ExecutionStatus.Completed;
                 result.EndTime = DateTime.UtcNow;
@@ -80,8 +80,9 @@ namespace MonkeyScheduler.Core.Services.Handlers
                 var httpParams = ParseHttpParameters(parameters);
                 return !string.IsNullOrEmpty(httpParams.Url) && !string.IsNullOrEmpty(httpParams.Method);
             }
-            catch
+            catch (Exception ex)
             {
+                _logger.LogWarning(ex, "HTTP任务参数验证失败");
                 return false;
             }
         }

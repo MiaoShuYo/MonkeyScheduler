@@ -82,7 +82,7 @@ namespace MonkeyScheduler.Logging
 
             var message = formatter(state, exception);
             var level = logLevel.ToString().ToUpper();
-            LogAsync(level, message, exception).Wait();
+            LogAsync(level, message, exception).GetAwaiter().GetResult();
         }
 
         /// <summary>
