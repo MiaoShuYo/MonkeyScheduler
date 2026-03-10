@@ -109,7 +109,7 @@ namespace MonkeyScheduler.Data.MySQL.Tests
         {
             // Arrange
             var taskId = Guid.NewGuid();
-            var expectedId = int.Parse(taskId.ToString("N").Substring(0, 8), System.Globalization.NumberStyles.HexNumber);
+            var expectedId = taskId.ToString();
 
             // 模拟命令
             var mockCommand = new Mock<IDbCommand>();
@@ -153,7 +153,7 @@ namespace MonkeyScheduler.Data.MySQL.Tests
             Assert.AreEqual(1, parameters.Count);
             Assert.AreEqual("Id", parameters[0].ParameterName);
             Assert.AreEqual(expectedId, parameters[0].Value);
-            Assert.AreEqual(DbType.Int32, parameters[0].DbType);
+            Assert.AreEqual(DbType.String, parameters[0].DbType);
         }
 
         [TestMethod]

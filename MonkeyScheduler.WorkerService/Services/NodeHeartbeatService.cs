@@ -1,6 +1,8 @@
 using System.Net.Http.Json;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using MonkeyScheduler.WorkerService.Options;
 
 namespace MonkeyScheduler.WorkerService.Services
 {
@@ -19,12 +21,7 @@ namespace MonkeyScheduler.WorkerService.Services
         /// <summary>
         /// 调度器服务地址
         /// </summary>
-        private readonly string _schedulerUrl;
-
-        /// <summary>
-        /// 当前Worker节点的地址
-        /// </summary>
-        private readonly string _workerUrl;
+        private readonly WorkerOptions _options;
 
         /// <summary>
         /// 心跳发送间隔时间
@@ -54,14 +51,12 @@ namespace MonkeyScheduler.WorkerService.Services
         /// <param name="workerUrl">当前Worker节点地址</param>
         /// <param name="logger">日志记录器</param>
         public NodeHeartbeatService(
-            IHttpClientFactory httpClientFactory, 
-            string schedulerUrl, 
-            string workerUrl,
+            IHttpClientFactory httpClientFactory,
+            IOptions<WorkerOptions> options,
             ILogger<NodeHeartbeatService> logger)
         {
             _httpClientFactory = httpClientFactory;
-            _schedulerUrl = schedulerUrl;
-            _workerUrl = workerUrl;
+            _options = options.Value;
             _logger = logger;
         }
 
@@ -86,17 +81,27 @@ namespace MonkeyScheduler.WorkerService.Services
                 {
                     // 发送心跳包
                     await SendHeartbeatWithRetryAsync(httpClient, stoppingToken);
+                    _logger.LogInformation("心跳发送成功");
+                }
+                catch (OperationCanceledException)
+                {
+                    break;
                 }
                 catch (Exception ex)
                 {
-                    // 记录心跳发送失败的错误
+                    // 记录心跳发送失败的错误，继续循环以便下次重试
                     _logger.LogError(ex, "心跳发送失败: {Message}", ex.Message);
-                    throw new Exception("心跳发送失败", ex);
                 }
 
                 // 等待下一次心跳间隔
-                await Task.Delay(_heartbeatInterval, stoppingToken);
-                _logger.LogInformation("心跳发送成功");
+                try
+                {
+                    await Task.Delay(_heartbeatInterval, stoppingToken);
+                }
+                catch (OperationCanceledException)
+                {
+                    break;
+                }
             }
         }
 
@@ -184,7 +189,7 @@ namespace MonkeyScheduler.WorkerService.Services
         /// <returns>异步任务</returns>
         private async Task RegisterNodeAsync(HttpClient httpClient)
         {
-            var response = await httpClient.PostAsJsonAsync($"{_schedulerUrl}/api/worker/register", _workerUrl);
+            var response = await httpClient.PostAsJsonAsync($"{_options.SchedulerUrl}/api/worker/register", _options.WorkerUrl);
             response.EnsureSuccessStatusCode();
         }
 
@@ -195,7 +200,7 @@ namespace MonkeyScheduler.WorkerService.Services
         /// <returns>异步任务</returns>
         private async Task SendHeartbeatAsync(HttpClient httpClient)
         {
-            var response = await httpClient.PostAsJsonAsync($"{_schedulerUrl}/api/worker/heartbeat", _workerUrl);
+            var response = await httpClient.PostAsJsonAsync($"{_options.SchedulerUrl}/api/worker/heartbeat", _options.WorkerUrl);
             response.EnsureSuccessStatusCode();
         }
     }

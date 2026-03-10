@@ -3,6 +3,7 @@ using MonkeyScheduler.Core.Models;
 using MonkeyScheduler.Core.Services;
 using MonkeyScheduler.Data.MySQL.Data;
 using MonkeyScheduler.Data.MySQL.Models;
+using Microsoft.Extensions.Logging;
 
 namespace MonkeyScheduler.Data.MySQL.Repositories
 {
@@ -13,14 +14,16 @@ namespace MonkeyScheduler.Data.MySQL.Repositories
     public class TaskExecutionResultRepository : ITaskExecutionResult
     {
         private readonly MySqlDbContext _dbContext;
+        private readonly ILogger<TaskExecutionResultRepository>? _logger;
 
         /// <summary>
         /// 构造函数
         /// </summary>
         /// <param name="dbContext">MySQL数据库上下文</param>
-        public TaskExecutionResultRepository(MySqlDbContext dbContext)
+        public TaskExecutionResultRepository(MySqlDbContext dbContext, ILogger<TaskExecutionResultRepository>? logger = null)
         {
             _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
+            _logger = logger;
         }
 
         /// <summary>
@@ -77,9 +80,7 @@ namespace MonkeyScheduler.Data.MySQL.Repositories
             catch (Exception ex)
             {
                 // 记录详细的错误信息
-                Console.WriteLine($"Error inserting task execution result: {ex.Message}");
-                Console.WriteLine($"SQL: {sql}");
-                Console.WriteLine($"Parameters: TaskId={result.TaskId}, StartTime={result.StartTime}, Status={result.Status}");
+                _logger?.LogError(ex, "Error inserting task execution result. SQL: {Sql}, TaskId: {TaskId}, StartTime: {StartTime}, Status: {Status}", sql, result.TaskId, result.StartTime, result.Status);
                 throw;
             }
         }

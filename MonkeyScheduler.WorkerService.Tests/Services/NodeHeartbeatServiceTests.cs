@@ -33,11 +33,16 @@ namespace MonkeyScheduler.WorkerService.Tests.Services
             _httpClientFactoryMock.Setup(x => x.CreateClient(It.IsAny<string>()))
                 .Returns(httpClient);
 
+            var workerOptions = new MonkeyScheduler.WorkerService.Options.WorkerOptions
+            {
+                SchedulerUrl = SchedulerUrl,
+                WorkerUrl = WorkerUrl
+            };
             _service = new NodeHeartbeatService(
                 _httpClientFactoryMock.Object,
-                SchedulerUrl,
-                WorkerUrl,
-                _loggerMock.Object);
+                Microsoft.Extensions.Options.Options.Create(workerOptions),
+                _loggerMock.Object
+            );
         }
 
         [TestMethod]
@@ -269,7 +274,7 @@ namespace MonkeyScheduler.WorkerService.Tests.Services
             var cts = new CancellationTokenSource();
             var testException = new HttpRequestException("Heartbeat error");
 
-            // 设置HTTP处理器模拟注册成功但心跳失败
+            // 设置HTTP处理器模拟注册成功
             _httpMessageHandlerMock
                 .Protected()
                 .Setup<Task<HttpResponseMessage>>(
@@ -279,7 +284,7 @@ namespace MonkeyScheduler.WorkerService.Tests.Services
                 )
                 .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK));
 
-            // 设置心跳请求连续失败6次
+            // 设置心跳请求失败，失败时取消服务令牌
             _httpMessageHandlerMock
                 .Protected()
                 .Setup<Task<HttpResponseMessage>>(
@@ -287,43 +292,26 @@ namespace MonkeyScheduler.WorkerService.Tests.Services
                     ItExpr.Is<HttpRequestMessage>(req => req.RequestUri.ToString().Contains("/api/worker/heartbeat")),
                     ItExpr.IsAny<CancellationToken>()
                 )
-                .ReturnsAsync(() => throw testException);
+                .ReturnsAsync(() =>
+                {
+                    cts.Cancel(); // 取消服务，使重试延迟立即中断
+                    throw testException;
+                });
 
             var httpClient = new HttpClient(_httpMessageHandlerMock.Object);
             _httpClientFactoryMock.Setup(x => x.CreateClient(It.IsAny<string>()))
                 .Returns(httpClient);
 
-            // Act
-            var exception = await Assert.ThrowsExceptionAsync<Exception>(
-                async () =>
-                {
-                    // 使用反射调用私有方法
-                    var method = typeof(NodeHeartbeatService).GetMethod("ExecuteAsync",
-                        System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-                    await (Task)method!.Invoke(_service, new object[] { cts.Token })!;
-                }
-            );
+            // Act - 服务在心跳失败时不应抛出异常，而应继续运行直到取消
+            await _service.StartAsync(cts.Token);
+            await Task.Delay(500); // 等待后台任务处理
 
-            // Assert
-            Assert.AreEqual("心跳发送失败", exception.Message);
-
-            // 验证警告日志
+            // Assert - 验证警告日志（心跳重试失败）
             _loggerMock.Verify(
                 x => x.Log(
                     LogLevel.Warning,
                     It.IsAny<EventId>(),
-                    It.Is<It.IsAnyType>((v, t) => v.ToString()!.Contains("心跳发送失败，尝试次数")),
-                    It.IsAny<Exception>(),
-                    It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
-                Times.AtLeastOnce
-            );
-
-            // 验证错误日志
-            _loggerMock.Verify(
-                x => x.Log(
-                    LogLevel.Error,
-                    It.IsAny<EventId>(),
-                    It.Is<It.IsAnyType>((v, t) => v.ToString()!.Contains("心跳发送失败:")),
+                    It.Is<It.IsAnyType>((v, t) => v.ToString()!.Contains("心跳发送失败")),
                     It.IsAny<Exception>(),
                     It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
                 Times.AtLeastOnce

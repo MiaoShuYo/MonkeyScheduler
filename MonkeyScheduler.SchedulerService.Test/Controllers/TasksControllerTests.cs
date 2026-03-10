@@ -8,6 +8,8 @@ using MonkeyScheduler.Core.Services;
 using MonkeyScheduler.SchedulerService.Controllers;
 using MonkeyScheduler.SchedulerService.Models;
 using MonkeyScheduler.Storage;
+using Microsoft.Extensions.Logging;
+using MonkeyScheduler.SchedulerService.Services;
 
 namespace MonkeyScheduler.SchedulerService.Test.Controllers
 {
@@ -16,6 +18,8 @@ namespace MonkeyScheduler.SchedulerService.Test.Controllers
     {
         private Mock<ITaskRepository> _mockTaskRepository;
         private Mock<ITaskExecutionResult> _mockTaskExecutionResult;
+        private Mock<IEnhancedTaskRetryManager> _mockEnhancedTaskRetryManager;
+        private Mock<ILogger<TasksController>> _mockLogger;
         private TasksController _tasksController;
         private ScheduledTask _testTask;
         private Guid _testTaskId;
@@ -24,8 +28,10 @@ namespace MonkeyScheduler.SchedulerService.Test.Controllers
         public void Setup()
         {
             _mockTaskRepository = new Mock<ITaskRepository>();
-            _mockTaskExecutionResult = new Mock<ITaskExecutionResult>(); // 初始化 _mockTaskExecutionResult
-            _tasksController = new TasksController(_mockTaskRepository.Object, _mockTaskExecutionResult.Object);
+            _mockTaskExecutionResult = new Mock<ITaskExecutionResult>();
+            _mockEnhancedTaskRetryManager = new Mock<IEnhancedTaskRetryManager>();
+            _mockLogger = new Mock<ILogger<TasksController>>();
+            _tasksController = new TasksController(_mockTaskRepository.Object, _mockTaskExecutionResult.Object, _mockEnhancedTaskRetryManager.Object, _mockLogger.Object);
     
             _testTaskId = Guid.NewGuid();
             _testTask = new ScheduledTask

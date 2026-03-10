@@ -1,5 +1,8 @@
 using System.Net.Http.Json;
 using MonkeyScheduler.Core.Models;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using MonkeyScheduler.WorkerService.Options;
 
 namespace MonkeyScheduler.WorkerService.Services
 {
@@ -17,12 +20,10 @@ namespace MonkeyScheduler.WorkerService.Services
         /// <summary>
         /// 调度器服务地址
         /// </summary>
-        private readonly string _schedulerUrl;
+        private readonly WorkerOptions _options;
 
-        /// <summary>
-        /// 当前Worker节点的地址
-        /// </summary>
-        private readonly string _workerUrl;
+        private readonly string _schedulerUrl;
+        private readonly ILogger<StatusReporterService> _logger;
 
         /// <summary>
         /// 初始化状态上报服务
@@ -30,11 +31,12 @@ namespace MonkeyScheduler.WorkerService.Services
         /// <param name="httpClientFactory">HTTP客户端工厂</param>
         /// <param name="schedulerUrl">调度器服务地址</param>
         /// <param name="workerUrl">当前Worker节点地址</param>
-        public StatusReporterService(IHttpClientFactory httpClientFactory, string schedulerUrl, string workerUrl)
+        public StatusReporterService(IHttpClientFactory httpClientFactory, IOptions<WorkerOptions> options, ILogger<StatusReporterService> logger)
         {
             _httpClientFactory = httpClientFactory;
-            _schedulerUrl = schedulerUrl;
-            _workerUrl = workerUrl;
+            _options = options.Value;
+            _schedulerUrl = _options.SchedulerUrl;
+            _logger = logger;
         }
 
         /// <summary>
@@ -49,21 +51,19 @@ namespace MonkeyScheduler.WorkerService.Services
             var httpClient = _httpClientFactory.CreateClient();
             
             // 设置执行结果的Worker节点信息
-            result.WorkerNodeUrl = _workerUrl;
+            result.WorkerNodeUrl = _options.WorkerUrl;
 
             try
             {
-                var json = System.Text.Json.JsonSerializer.Serialize(result);
-                Console.WriteLine($"Sending task execution result to {_schedulerUrl}/api/tasks/status");
-                Console.WriteLine($"TaskExecutionResult: {json}");
+                _logger.LogInformation("Sending task execution result to {Url}", $"{_options.SchedulerUrl}/api/tasks/status");
                 
                 // 向调度器发送任务执行结果
-                var response = await httpClient.PostAsJsonAsync($"{_schedulerUrl}/api/tasks/status", result);
+                var response = await httpClient.PostAsJsonAsync($"{_options.SchedulerUrl}/api/tasks/status", result);
                 
                 if (!response.IsSuccessStatusCode)
                 {
                     var responseContent = await response.Content.ReadAsStringAsync();
-                    Console.WriteLine($"Status report failed. Status: {response.StatusCode}, Response: {responseContent}");
+                    _logger.LogWarning("Status report failed. Status: {StatusCode}, Response: {Response}", response.StatusCode, responseContent);
                 }
                 
                 response.EnsureSuccessStatusCode();
@@ -71,7 +71,7 @@ namespace MonkeyScheduler.WorkerService.Services
             catch (Exception ex)
             {
                 // 记录状态上报失败的错误并重新抛出异常
-                Console.WriteLine($"状态上报失败: {ex.Message}");
+                _logger.LogError(ex, "状态上报失败");
                 throw;
             }
         }

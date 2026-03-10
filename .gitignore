@@ -12,9 +12,6 @@ obj/
 *.exe
 *.pdb
 
-# Project specific
-task/
-
 # Build results
 [Dd]ebug/
 [Dd]ebugPublic/
@@ -73,7 +70,4 @@ MonkeyScheduler/bin/
 MonkeyScheduler/obj/
 MonkeyScheduler.Sample/bin/
 MonkeyScheduler.Sample/obj/
-MonkeyScheduler.Sample/Properties/
 task.7z
-SchedulingServer/Properties/
-WorkerService/Properties/

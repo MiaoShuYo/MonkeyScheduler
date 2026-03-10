@@ -3,17 +3,20 @@ using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Builder.Internal;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Logging;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using MonkeyScheduler.Core;
+using MonkeyScheduler.Core.Configuration;
+using MonkeyScheduler.Core.Models;
 using MonkeyScheduler.Core.Services;
 using MonkeyScheduler.SchedulerService;
 using MonkeyScheduler.SchedulerService.Services;
+using MonkeyScheduler.SchedulerService.Services.Strategies;
 using MonkeyScheduler.Storage;
+using Moq;
 
 namespace MonkeyScheduler.SchedulerService.Test
 {
@@ -45,7 +48,7 @@ namespace MonkeyScheduler.SchedulerService.Test
             var services = new ServiceCollection();
 
             // Act
-            services.AddLoadBalancer<LoadBalancer>(sp => new LoadBalancer(new NodeRegistry()));
+            services.AddLoadBalancer<LoadBalancer>(sp => new LoadBalancer(new NodeRegistry(), new LeastConnectionStrategy()));
 
             // Assert
             var serviceDescriptor = services.FirstOrDefault(sd => 
@@ -103,45 +106,54 @@ namespace MonkeyScheduler.SchedulerService.Test
 
             // Assert
             // 检查基础服务
-            Assert.IsTrue(services.Any(sd => 
+            var loadBalancerService = services.FirstOrDefault(sd => 
                 sd.ServiceType == typeof(ILoadBalancer) && 
-                sd.ImplementationType == typeof(LoadBalancer) &&
-                sd.Lifetime == ServiceLifetime.Singleton));
+                sd.Lifetime == ServiceLifetime.Singleton &&
+                (sd.ImplementationType == typeof(LoadBalancer) || sd.ImplementationFactory != null)
+            );
+            Assert.IsNotNull(loadBalancerService, "ILoadBalancer service not found or incorrectly configured");
 
-            Assert.IsTrue(services.Any(sd => 
+            var nodeRegistryService = services.FirstOrDefault(sd => 
                 sd.ServiceType == typeof(INodeRegistry) && 
                 sd.ImplementationType == typeof(NodeRegistry) &&
-                sd.Lifetime == ServiceLifetime.Singleton));
+                sd.Lifetime == ServiceLifetime.Singleton);
+            Assert.IsNotNull(nodeRegistryService, "INodeRegistry service not found or incorrectly configured");
 
-            Assert.IsTrue(services.Any(sd => 
+            var taskRepositoryService = services.FirstOrDefault(sd => 
                 sd.ServiceType == typeof(ITaskRepository) && 
                 sd.ImplementationType == typeof(InMemoryTaskRepository) &&
-                sd.Lifetime == ServiceLifetime.Singleton));
+                sd.Lifetime == ServiceLifetime.Singleton);
+            Assert.IsNotNull(taskRepositoryService, "ITaskRepository service not found or incorrectly configured");
 
-            Assert.IsTrue(services.Any(sd => 
+            var schedulerService = services.FirstOrDefault(sd => 
                 sd.ServiceType == typeof(Scheduler) &&
-                sd.Lifetime == ServiceLifetime.Singleton));
+                sd.Lifetime == ServiceLifetime.Singleton);
+            Assert.IsNotNull(schedulerService, "Scheduler service not found or incorrectly configured");
 
             // 检查任务调度相关服务
-            Assert.IsTrue(services.Any(sd => 
+            var taskDispatcherService = services.FirstOrDefault(sd => 
                 sd.ServiceType == typeof(ITaskDispatcher) && 
                 sd.ImplementationType == typeof(TaskDispatcher) &&
-                sd.Lifetime == ServiceLifetime.Singleton));
+                sd.Lifetime == ServiceLifetime.Singleton);
+            Assert.IsNotNull(taskDispatcherService, "ITaskDispatcher service not found or incorrectly configured");
 
-            Assert.IsTrue(services.Any(sd => 
+            var taskRetryManagerService = services.FirstOrDefault(sd => 
                 sd.ServiceType == typeof(ITaskRetryManager) && 
                 sd.ImplementationType == typeof(TaskRetryManager) &&
-                sd.Lifetime == ServiceLifetime.Singleton));
+                sd.Lifetime == ServiceLifetime.Singleton);
+            Assert.IsNotNull(taskRetryManagerService, "ITaskRetryManager service not found or incorrectly configured");
 
             // 检查HTTP客户端
-            Assert.IsTrue(services.Any(sd => 
+            var httpClientFactoryService = services.FirstOrDefault(sd => 
                 sd.ServiceType == typeof(IHttpClientFactory) &&
-                sd.Lifetime == ServiceLifetime.Singleton));
+                sd.Lifetime == ServiceLifetime.Singleton);
+            Assert.IsNotNull(httpClientFactoryService, "IHttpClientFactory service not found or incorrectly configured");
 
             // 检查健康检查
-            Assert.IsTrue(services.Any(sd => 
+            var healthCheckService = services.FirstOrDefault(sd => 
                 sd.ServiceType == typeof(HealthCheckService) &&
-                sd.Lifetime == ServiceLifetime.Singleton));
+                sd.Lifetime == ServiceLifetime.Singleton);
+            Assert.IsNotNull(healthCheckService, "HealthCheckService service not found or incorrectly configured");
         }
 
         [TestMethod]
@@ -153,10 +165,13 @@ namespace MonkeyScheduler.SchedulerService.Test
             // 创建必需的依赖项
             var taskRepository = new InMemoryTaskRepository();
             var nodeRegistry = new NodeRegistry();
-            var loadBalancer = new LoadBalancer(nodeRegistry);
+            var loadBalancer = new LoadBalancer(nodeRegistry, new LeastConnectionStrategy());
             var httpClient = new HttpClient();
-            var taskDispatcher = new TaskDispatcher(nodeRegistry, httpClient, loadBalancer);
+            var httpClientFactory = new Mock<IHttpClientFactory>();
+            httpClientFactory.Setup(f => f.CreateClient(It.IsAny<string>())).Returns(httpClient);
+            var mockRetryManager = new Mock<IEnhancedTaskRetryManager>();
             var loggerFactory = LoggerFactory.Create(builder => { });
+            var taskDispatcher = new TaskDispatcher(nodeRegistry, httpClientFactory.Object, loadBalancer, mockRetryManager.Object, loggerFactory.CreateLogger<TaskDispatcher>(), Microsoft.Extensions.Options.Options.Create(new RetryConfiguration()));
             var logger = loggerFactory.CreateLogger<Scheduler>();
             
             // 注册基础服务
@@ -165,6 +180,12 @@ namespace MonkeyScheduler.SchedulerService.Test
             services.AddSingleton<ITaskRepository>(taskRepository);
             services.AddSingleton<ITaskDispatcher>(taskDispatcher);
             services.AddSingleton<ILogger<Scheduler>>(logger);
+            
+            // 注册DAG相关服务
+            var mockDagDependencyChecker = new Mock<IDagDependencyChecker>();
+            var mockDagExecutionManager = new Mock<IDagExecutionManager>();
+            services.AddSingleton<IDagDependencyChecker>(mockDagDependencyChecker.Object);
+            services.AddSingleton<IDagExecutionManager>(mockDagExecutionManager.Object);
             services.AddSingleton<Scheduler>();
             
             // 添加其他服务

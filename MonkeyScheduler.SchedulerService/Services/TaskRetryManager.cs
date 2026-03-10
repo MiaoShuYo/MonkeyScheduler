@@ -1,4 +1,5 @@
 using System.Net.Http.Json;
+using Microsoft.Extensions.Logging;
 using MonkeyScheduler.Core.Models;
 
 namespace MonkeyScheduler.SchedulerService.Services
@@ -18,7 +19,8 @@ namespace MonkeyScheduler.SchedulerService.Services
     }
 
     /// <summary>
-    /// 任务重试管理器，处理任务执行失败后的重试逻辑
+    /// 任务重试管理器，处理任务执行失败后的基础重试逻辑。
+    /// 仅支持简单的节点移除与重试，不含高级策略。
     /// </summary>
     public class TaskRetryManager : ITaskRetryManager
     {
@@ -43,11 +45,16 @@ namespace MonkeyScheduler.SchedulerService.Services
         }
 
         /// <summary>
-        /// 重试执行任务
+        /// 重试执行任务。
         /// </summary>
         /// <param name="task">要重试的任务</param>
         /// <param name="failedNode">失败的节点URL</param>
         /// <returns>异步任务</returns>
+        /// <exception cref="InvalidOperationException">无可用节点时抛出</exception>
+        /// <remarks>
+        /// 1. 先移除失败节点，再选择新节点。
+        /// 2. 不支持复杂重试策略，适合简单场景。
+        /// </remarks>
         public virtual async Task RetryTaskAsync(ScheduledTask task, string failedNode)
         {
             if (task == null)

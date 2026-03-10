@@ -30,6 +30,7 @@ namespace MonkeySchedulerTest
 
             // 设置仓储行为
             _mockRepo.Setup(r => r.GetAllTasks()).Returns(_tasks);
+            _mockRepo.Setup(r => r.GetAllTasksAsync()).ReturnsAsync(_tasks);
             _mockRepo.Setup(r => r.UpdateTask(It.IsAny<ScheduledTask>()))
                 .Callback<ScheduledTask>(task =>
                 {
@@ -39,13 +40,25 @@ namespace MonkeySchedulerTest
                         existingTask.NextRunTime = task.NextRunTime;
                     }
                 });
+            _mockRepo.Setup(r => r.UpdateTaskAsync(It.IsAny<ScheduledTask>()))
+                .Callback<ScheduledTask>(task =>
+                {
+                    var existingTask = _tasks.FirstOrDefault(t => t.Id == task.Id);
+                    if (existingTask != null)
+                    {
+                        existingTask.NextRunTime = task.NextRunTime;
+                    }
+                })
+                .Returns(Task.CompletedTask);
 
             // 设置分发器行为
-            _mockDispatcher.Setup(d => d.DispatchTaskAsync(It.IsAny<ScheduledTask>(), null))
+            _mockDispatcher.Setup(d => d.DispatchTaskAsync(It.IsAny<ScheduledTask>(), It.IsAny<Func<TaskExecutionResult, Task>>()))
                 .Returns(Task.CompletedTask);
 
             // 创建调度器实例
-            _scheduler = new Scheduler(_mockRepo.Object, _mockDispatcher.Object, _mockLogger.Object);
+            var mockDagDependencyChecker = new Mock<IDagDependencyChecker>();
+            var mockDagExecutionManager = new Mock<IDagExecutionManager>();
+            _scheduler = new Scheduler(_mockRepo.Object, _mockDispatcher.Object, mockDagDependencyChecker.Object, mockDagExecutionManager.Object, _mockLogger.Object);
         }
 
         [TestMethod]
@@ -72,10 +85,10 @@ namespace MonkeySchedulerTest
             _mockDispatcher.Verify(
                 d => d.DispatchTaskAsync(
                     It.Is<ScheduledTask>(t => t.Id == dueTask.Id),
-                    null),
+                    It.IsAny<Func<TaskExecutionResult, Task>>()),
                 Times.AtLeastOnce());
             _mockRepo.Verify(
-                r => r.UpdateTask(
+                r => r.UpdateTaskAsync(
                     It.Is<ScheduledTask>(t => t.Id == dueTask.Id && t.NextRunTime > now)),
                 Times.AtLeastOnce());
         }
@@ -104,7 +117,7 @@ namespace MonkeySchedulerTest
             _mockDispatcher.Verify(
                 d => d.DispatchTaskAsync(
                     It.Is<ScheduledTask>(t => t.Id == notDueTask.Id),
-                    null),
+                    It.IsAny<Func<TaskExecutionResult, Task>>()),
                 Times.Never());
         }
 
@@ -132,7 +145,7 @@ namespace MonkeySchedulerTest
             _mockDispatcher.Verify(
                 d => d.DispatchTaskAsync(
                     It.Is<ScheduledTask>(t => t.Id == disabledTask.Id),
-                    null),
+                    It.IsAny<Func<TaskExecutionResult, Task>>()),
                 Times.Never());
         }
 
@@ -151,7 +164,7 @@ namespace MonkeySchedulerTest
             };
             _tasks.Add(task);
 
-            _mockDispatcher.Setup(d => d.DispatchTaskAsync(It.IsAny<ScheduledTask>(), null))
+            _mockDispatcher.Setup(d => d.DispatchTaskAsync(It.IsAny<ScheduledTask>(), It.IsAny<Func<TaskExecutionResult, Task>>()))
                 .ThrowsAsync(new Exception("模拟分发异常"));
 
             // Act
@@ -174,8 +187,8 @@ namespace MonkeySchedulerTest
         public async Task Start_ShouldHandleRepositoryException()
         {
             // Arrange
-            _mockRepo.Setup(r => r.GetAllTasks())
-                .Throws(new Exception("模拟仓储异常"));
+            _mockRepo.Setup(r => r.GetAllTasksAsync())
+                .ThrowsAsync(new Exception("模拟仓储异常"));
 
             // Act
             _scheduler.Start();
@@ -247,13 +260,13 @@ namespace MonkeySchedulerTest
             _tasks.AddRange(new[] { task1, task2 });
 
             var executionOrder = new List<Guid>();
-            _mockDispatcher.Setup(d => d.DispatchTaskAsync(It.IsAny<ScheduledTask>(), null))
+            _mockDispatcher.Setup(d => d.DispatchTaskAsync(It.IsAny<ScheduledTask>(), It.IsAny<Func<TaskExecutionResult, Task>>()))
                 .Callback<ScheduledTask, Func<TaskExecutionResult, Task>>((t, _) => executionOrder.Add(t.Id))
                 .Returns(Task.CompletedTask);
 
             // Act
             _scheduler.Start();
-            await Task.Delay(500); // 减少等待时间，确保只执行一个周期
+            await Task.Delay(1500); // 增加等待时间，确保调度器有足够时间执行
             _scheduler.Stop();
 
             // Assert

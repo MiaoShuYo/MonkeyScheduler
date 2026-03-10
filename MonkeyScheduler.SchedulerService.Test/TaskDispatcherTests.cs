@@ -6,9 +6,12 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Moq;
 using Moq.Language.Flow;
 using Moq.Protected;
+using MonkeyScheduler.Core.Configuration;
 using MonkeyScheduler.Core.Models;
 using MonkeyScheduler.Core.Services;
 using MonkeyScheduler.SchedulerService.Services;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace MonkeyScheduler.SchedulerService.Test
 {
@@ -18,7 +21,11 @@ namespace MonkeyScheduler.SchedulerService.Test
         private Mock<INodeRegistry> _mockNodeRegistry;
         private Mock<ILoadBalancer> _mockLoadBalancer;
         private Mock<HttpMessageHandler> _mockHttpMessageHandler;
+        private Mock<IEnhancedTaskRetryManager> _mockRetryManager;
+        private Mock<ILogger<TaskDispatcher>> _mockLogger;
+        private Mock<IOptions<RetryConfiguration>> _mockRetryOptions;
         private HttpClient _httpClient;
+        private Mock<IHttpClientFactory> _httpClientFactory;
         private TaskDispatcher _taskDispatcher;
         private ScheduledTask _testTask;
         private const string NodeUrl = "http://test-node:5000";
@@ -29,8 +36,19 @@ namespace MonkeyScheduler.SchedulerService.Test
             _mockNodeRegistry = new Mock<INodeRegistry>();
             _mockLoadBalancer = new Mock<ILoadBalancer>();
             _mockHttpMessageHandler = new Mock<HttpMessageHandler>();
+            _mockRetryManager = new Mock<IEnhancedTaskRetryManager>();
+            _mockLogger = new Mock<ILogger<TaskDispatcher>>();
+            _mockRetryOptions = new Mock<IOptions<RetryConfiguration>>();
+            _mockRetryOptions.Setup(x => x.Value).Returns(new RetryConfiguration());
+            
+            // 设置重试管理器的Mock行为
+            _mockRetryManager.Setup(rm => rm.ShouldRetryTask(It.IsAny<ScheduledTask>())).Returns(false);
+            _mockRetryManager.Setup(rm => rm.ResetRetryState(It.IsAny<ScheduledTask>()));
+            
             _httpClient = new HttpClient(_mockHttpMessageHandler.Object);
-            _taskDispatcher = new TaskDispatcher(_mockNodeRegistry.Object, _httpClient, _mockLoadBalancer.Object);
+            _httpClientFactory = new Mock<IHttpClientFactory>();
+            _httpClientFactory.Setup(f => f.CreateClient(It.IsAny<string>())).Returns(_httpClient);
+            _taskDispatcher = new TaskDispatcher(_mockNodeRegistry.Object, _httpClientFactory.Object, _mockLoadBalancer.Object, _mockRetryManager.Object, _mockLogger.Object, _mockRetryOptions.Object);
             
             _testTask = new ScheduledTask
             {
@@ -38,7 +56,10 @@ namespace MonkeyScheduler.SchedulerService.Test
                 Name = "Test Task",
                 CronExpression = "0 * * * *",
                 NextRunTime = DateTime.UtcNow,
-                Enabled = true
+                Enabled = true,
+                EnableRetry = false, // 禁用重试，确保异常能够抛出
+                MaxRetryCount = 0,
+                CurrentRetryCount = 0
             };
         }
 
@@ -94,6 +115,8 @@ namespace MonkeyScheduler.SchedulerService.Test
         public async Task DispatchTaskAsync_WhenNodeFails_RemovesNodeAndCallsCallbackWithFailure()
         {
             // Arrange
+            _testTask.EnableRetry = true;
+            _mockRetryManager.Setup(rm => rm.RetryTaskAsync(It.IsAny<ScheduledTask>(), It.IsAny<string>(), It.IsAny<Exception>())).ReturnsAsync(false);
             _mockLoadBalancer.Setup(lb => lb.SelectNode(_testTask)).Returns(NodeUrl);
             SetupMockHttpResponse(HttpMethod.Post, $"{NodeUrl}/api/task/execute", HttpStatusCode.InternalServerError);
             
@@ -123,6 +146,8 @@ namespace MonkeyScheduler.SchedulerService.Test
         public async Task DispatchTaskAsync_WhenNodeFailsAndNoCallback_RemovesNodeAndThrowsException()
         {
             // Arrange
+            _testTask.EnableRetry = true;
+            _mockRetryManager.Setup(rm => rm.RetryTaskAsync(It.IsAny<ScheduledTask>(), It.IsAny<string>(), It.IsAny<Exception>())).ReturnsAsync(false);
             _mockLoadBalancer.Setup(lb => lb.SelectNode(_testTask)).Returns(NodeUrl);
             SetupMockHttpResponse(HttpMethod.Post, $"{NodeUrl}/api/task/execute", HttpStatusCode.InternalServerError);
 
@@ -138,6 +163,8 @@ namespace MonkeyScheduler.SchedulerService.Test
         public async Task DispatchTaskAsync_WhenNodeFailsWithNetworkError_HandlesExceptionCorrectly()
         {
             // Arrange
+            _testTask.EnableRetry = true;
+            _mockRetryManager.Setup(rm => rm.RetryTaskAsync(It.IsAny<ScheduledTask>(), It.IsAny<string>(), It.IsAny<Exception>())).ReturnsAsync(false);
             _mockLoadBalancer.Setup(lb => lb.SelectNode(_testTask)).Returns(NodeUrl);
             SetupMockHttpResponse(HttpMethod.Post, $"{NodeUrl}/api/task/execute", 
                 new HttpRequestException("Network error"));
@@ -169,6 +196,8 @@ namespace MonkeyScheduler.SchedulerService.Test
         public async Task DispatchTaskAsync_WhenNoNodeAvailable_ThrowsInvalidOperationException()
         {
             // Arrange
+            _testTask.EnableRetry = false;
+            _mockRetryManager.Setup(rm => rm.ShouldRetryTask(It.IsAny<ScheduledTask>())).Returns(false);
             _mockLoadBalancer.Setup(lb => lb.SelectNode(_testTask)).Returns(string.Empty);
 
             // Act
@@ -180,6 +209,8 @@ namespace MonkeyScheduler.SchedulerService.Test
         public async Task DispatchTaskAsync_WhenSelectNodeThrowsException_PropagatesException()
         {
             // Arrange
+            _testTask.EnableRetry = false;
+            _mockRetryManager.Setup(rm => rm.ShouldRetryTask(It.IsAny<ScheduledTask>())).Returns(false);
             _mockLoadBalancer.Setup(lb => lb.SelectNode(_testTask))
                 .Throws(new InvalidOperationException("No available nodes"));
 
@@ -191,6 +222,8 @@ namespace MonkeyScheduler.SchedulerService.Test
         public async Task DispatchTaskAsync_WhenExceptionOccursWithNullNode_HandlesCorrectly()
         {
             // Arrange
+            _testTask.EnableRetry = false;
+            _mockRetryManager.Setup(rm => rm.ShouldRetryTask(It.IsAny<ScheduledTask>())).Returns(false);
             _mockLoadBalancer.Setup(lb => lb.SelectNode(_testTask))
                 .Returns((string)null);
 

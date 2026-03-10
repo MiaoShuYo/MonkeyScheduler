@@ -27,7 +27,11 @@ namespace MonkeyScheduler.Data.MySQL.Tests
         {
             _loggerMock = new Mock<ILogger<MySqlDbContext>>();
             _connectionMock = new Mock<IDbConnection>();
-            _dbContext = new MySqlDbContext(TestConnectionString, _loggerMock.Object);
+            var options = new MySqlConnectionOptions
+            {
+                ConnectionString = TestConnectionString
+            };
+            _dbContext = new MySqlDbContext(options, _loggerMock.Object);
             _repository = new TaskExecutionResultRepository(_dbContext);
         }
 

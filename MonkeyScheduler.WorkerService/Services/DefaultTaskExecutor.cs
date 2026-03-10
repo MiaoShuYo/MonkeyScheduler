@@ -1,4 +1,4 @@
-using System.Net.Http.Json;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using MonkeyScheduler.Core.Models;
 using MonkeyScheduler.Core.Services;
@@ -21,7 +21,8 @@ namespace MonkeyScheduler.WorkerService.Services
     /// </summary>
     public class DefaultTaskExecutor : ITaskExecutor
     {
-        private readonly IHttpClientFactory _httpClientFactory;
+        private readonly IStatusReporterService _statusReporterService;
+        private readonly ILogger<DefaultTaskExecutor> _logger;
         private readonly DefaultTaskExecutorOptions _options;
 
         /// <summary>
@@ -29,10 +30,11 @@ namespace MonkeyScheduler.WorkerService.Services
         /// </summary>
         /// <param name="httpClientFactory">HTTP客户端工厂</param>
         /// <param name="options">配置选项</param>
-        public DefaultTaskExecutor(IHttpClientFactory httpClientFactory, IOptions<DefaultTaskExecutorOptions> options)
+        public DefaultTaskExecutor(IStatusReporterService statusReporterService, IOptions<DefaultTaskExecutorOptions> options, ILogger<DefaultTaskExecutor> logger)
         {
-            _httpClientFactory = httpClientFactory;
+            _statusReporterService = statusReporterService;
             _options = options.Value;
+            _logger = logger;
         }
 
         /// <summary>
@@ -44,13 +46,13 @@ namespace MonkeyScheduler.WorkerService.Services
         public async Task ExecuteAsync(ScheduledTask task, Func<TaskExecutionResult, Task>? statusCallback = null)
         {
             var startTime = DateTime.UtcNow;
-            var client = _httpClientFactory.CreateClient();
 
             try
             {
-                // 发送任务执行请求
-                var response = await client.PostAsJsonAsync($"{_options.SchedulerUrl}/api/task/execute", task);
-                response.EnsureSuccessStatusCode();
+                // 执行本地任务逻辑（此处为示例：简单等待模拟任务耗时）
+                _logger.LogInformation("开始执行任务: {TaskName}", task.Name);
+                await Task.Delay(500);
+                _logger.LogInformation("任务执行完成: {TaskName}", task.Name);
 
                 // 调用完成回调
                 if (statusCallback != null)
@@ -65,10 +67,20 @@ namespace MonkeyScheduler.WorkerService.Services
                     };
                     await statusCallback(result);
                 }
+
+                // 上报成功状态
+                await _statusReporterService.ReportStatusAsync(new TaskExecutionResult
+                {
+                    TaskId = task.Id,
+                    Status = ExecutionStatus.Completed,
+                    StartTime = startTime,
+                    EndTime = DateTime.UtcNow,
+                    Success = true
+                });
             }
             catch (Exception ex)
             {
-                // 如果执行失败，调用回调报告失败状态
+                // 如果执行失败，调用回调并上报失败状态
                 if (statusCallback != null)
                 {
                     var result = new TaskExecutionResult
@@ -82,6 +94,16 @@ namespace MonkeyScheduler.WorkerService.Services
                     };
                     await statusCallback(result);
                 }
+
+                await _statusReporterService.ReportStatusAsync(new TaskExecutionResult
+                {
+                    TaskId = task.Id,
+                    Status = ExecutionStatus.Failed,
+                    StartTime = startTime,
+                    EndTime = DateTime.UtcNow,
+                    Success = false,
+                    ErrorMessage = ex.Message
+                });
                 throw new Exception($"任务执行失败: {ex.Message}", ex);
             }
         }

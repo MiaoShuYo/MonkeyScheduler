@@ -14,7 +14,6 @@ using System.Threading.Tasks;
 using System;
 using MonkeyScheduler.Core.Models;
 using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Builder.Internal;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -34,6 +33,12 @@ namespace MonkeyScheduler.WorkerService.Tests
             _tasks.Add(task);
         }
 
+        public Task AddTaskAsync(ScheduledTask task)
+        {
+            _tasks.Add(task);
+            return Task.CompletedTask;
+        }
+
         public void UpdateTask(ScheduledTask task)
         {
             var index = _tasks.FindIndex(t => t.Id == task.Id);
@@ -43,9 +48,25 @@ namespace MonkeyScheduler.WorkerService.Tests
             }
         }
 
+        public Task UpdateTaskAsync(ScheduledTask task)
+        {
+            var index = _tasks.FindIndex(t => t.Id == task.Id);
+            if (index != -1)
+            {
+                _tasks[index] = task;
+            }
+            return Task.CompletedTask;
+        }
+
         public void DeleteTask(Guid taskId)
         {
             _tasks.RemoveAll(t => t.Id == taskId);
+        }
+
+        public Task DeleteTaskAsync(Guid taskId)
+        {
+            _tasks.RemoveAll(t => t.Id == taskId);
+            return Task.CompletedTask;
         }
 
         public ScheduledTask? GetTask(Guid taskId)
@@ -53,9 +74,19 @@ namespace MonkeyScheduler.WorkerService.Tests
             return _tasks.FirstOrDefault(t => t.Id == taskId);
         }
 
+        public Task<ScheduledTask?> GetTaskAsync(Guid taskId)
+        {
+            return Task.FromResult(_tasks.FirstOrDefault(t => t.Id == taskId));
+        }
+
         public IEnumerable<ScheduledTask> GetAllTasks()
         {
             return _tasks;
+        }
+
+        public Task<IEnumerable<ScheduledTask>> GetAllTasksAsync()
+        {
+            return Task.FromResult<IEnumerable<ScheduledTask>>(_tasks);
         }
     }
 
@@ -82,9 +113,19 @@ namespace MonkeyScheduler.WorkerService.Tests
             _services = new ServiceCollection();
             _configurationMock = new Mock<IConfiguration>();
 
-            // 设置配置
+            // 创建配置节Mock
+            var configurationSectionMock = new Mock<IConfigurationSection>();
+            configurationSectionMock.Setup(x => x["SchedulerUrl"]).Returns(SchedulerUrl);
+            configurationSectionMock.Setup(x => x["WorkerUrl"]).Returns(WorkerUrl);
+            configurationSectionMock.Setup(x => x.Value).Returns((string)null);
+            configurationSectionMock.Setup(x => x.Path).Returns("MonkeyScheduler:Worker");
+            configurationSectionMock.Setup(x => x.Key).Returns("Worker");
+
+            // 设置配置Mock
             _configurationMock.Setup(x => x["MonkeyScheduler:SchedulingServer:Url"])
                 .Returns(SchedulerUrl);
+            _configurationMock.Setup(x => x.GetSection("MonkeyScheduler:Worker"))
+                .Returns(configurationSectionMock.Object);
 
             _services.AddSingleton(_configurationMock.Object);
             _services.AddSingleton(Mock.Of<ILogger<NodeHeartbeatService>>());
@@ -133,6 +174,14 @@ namespace MonkeyScheduler.WorkerService.Tests
             // Arrange
             _configurationMock.Setup(x => x["MonkeyScheduler:SchedulingServer:Url"])
                 .Returns((string)null);
+
+            // 新增：Mock Worker 配置节，避免 null
+            var workerSectionMock = new Mock<IConfigurationSection>();
+            workerSectionMock.Setup(x => x.Value).Returns((string)null);
+            workerSectionMock.Setup(x => x.Path).Returns("MonkeyScheduler:Worker");
+            workerSectionMock.Setup(x => x.Key).Returns("Worker");
+            _configurationMock.Setup(x => x.GetSection("MonkeyScheduler:Worker"))
+                .Returns(workerSectionMock.Object);
 
             // Act
             _services.AddWorkerService(WorkerUrl);

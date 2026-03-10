@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using MonkeyScheduler.Core.Models;
 
 namespace MonkeyScheduler.Storage
@@ -12,5 +13,11 @@ namespace MonkeyScheduler.Storage
         void DeleteTask(Guid taskId);
         ScheduledTask? GetTask(Guid taskId);
         IEnumerable<ScheduledTask> GetAllTasks();
+        
+        Task AddTaskAsync(ScheduledTask task);
+        Task UpdateTaskAsync(ScheduledTask task);
+        Task DeleteTaskAsync(Guid taskId);
+        Task<ScheduledTask?> GetTaskAsync(Guid taskId);
+        Task<IEnumerable<ScheduledTask>> GetAllTasksAsync();
     }
 } 
