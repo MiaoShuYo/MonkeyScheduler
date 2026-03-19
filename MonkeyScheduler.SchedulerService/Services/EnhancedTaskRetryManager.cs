@@ -15,10 +15,10 @@ namespace MonkeyScheduler.SchedulerService.Services
         /// 重试执行任务
         /// </summary>
         /// <param name="task">要重试的任务</param>
-        /// <param name="failedNode">失败的节点URL</param>
+        /// <param name="failedNode">失败的节点URL，为 null 或空字符串时不排除任何节点（适用于手动重试）</param>
         /// <param name="exception">失败异常</param>
         /// <returns>异步任务</returns>
-        Task<bool> RetryTaskAsync(ScheduledTask task, string failedNode, Exception? exception = null);
+        Task<bool> RetryTaskAsync(ScheduledTask task, string? failedNode, Exception? exception = null);
         
         /// <summary>
         /// 检查任务是否应该重试
@@ -79,7 +79,7 @@ namespace MonkeyScheduler.SchedulerService.Services
         /// 重试执行任务。
         /// </summary>
         /// <param name="task">要重试的任务</param>
-        /// <param name="failedNode">失败的节点URL</param>
+        /// <param name="failedNode">失败的节点URL，为 null 或空字符串时不排除任何节点（适用于手动重试）</param>
         /// <param name="exception">失败异常</param>
         /// <returns>异步任务，返回是否重试成功</returns>
         /// <exception cref="InvalidOperationException">无可用节点时抛出</exception>
@@ -88,13 +88,10 @@ namespace MonkeyScheduler.SchedulerService.Services
         /// 2. 支持多种重试策略，重试间隔可配置。
         /// 3. 达到最大重试次数后自动处理任务失败。
         /// </remarks>
-        public virtual async Task<bool> RetryTaskAsync(ScheduledTask task, string failedNode, Exception? exception = null)
+        public virtual async Task<bool> RetryTaskAsync(ScheduledTask task, string? failedNode, Exception? exception = null)
         {
             if (task == null)
                 throw new ArgumentNullException(nameof(task));
-
-            if (string.IsNullOrWhiteSpace(failedNode))
-                throw new ArgumentNullException(nameof(failedNode));
 
             // 检查是否应该重试
             if (!ShouldRetryTask(task))
@@ -107,13 +104,13 @@ namespace MonkeyScheduler.SchedulerService.Services
             if (_retryConfig.EnableRetryLogging)
             {
                 _logger.LogInformation("开始重试任务 {TaskName} (ID: {TaskId})，当前重试次数: {RetryCount}/{MaxRetries}，失败节点: {FailedNode}",
-                    task.Name, task.Id, task.CurrentRetryCount + 1, task.MaxRetryCount, failedNode);
+                    task.Name, task.Id, task.CurrentRetryCount + 1, task.MaxRetryCount, failedNode ?? "<manual retry>");
             }
 
             try
             {
-                // 如果配置了跳过失败节点，则从负载均衡器中移除
-                if (_retryConfig.SkipFailedNodes)
+                // 如果配置了跳过失败节点且提供了失败节点，则从负载均衡器中移除
+                if (_retryConfig.SkipFailedNodes && !string.IsNullOrWhiteSpace(failedNode))
                 {
                     _nodeRegistry.RemoveNode(failedNode);
                     _loadBalancer.RemoveNode(failedNode);

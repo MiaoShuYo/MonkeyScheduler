@@ -187,14 +187,14 @@ namespace MonkeyScheduler.SchedulerService.Controllers
         /// 400 Bad Request - 当请求参数无效时返回
         /// </returns>
         [HttpPost("status")]
-        public IActionResult ReportTaskStatus([FromBody] TaskExecutionResult? result)
+        public async Task<IActionResult> ReportTaskStatus([FromBody] TaskExecutionResult? result)
         {
             if (result == null)
                 return BadRequest("请求体不能为空");
 
             // 处理任务执行结果
             // 保存数据库
-            _executionResult.AddExecutionResultAsync(result);
+            await _executionResult.AddExecutionResultAsync(result);
             return Ok();
         }
 
