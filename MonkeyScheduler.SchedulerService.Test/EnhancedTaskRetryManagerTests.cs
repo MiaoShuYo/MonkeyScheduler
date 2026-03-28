@@ -251,19 +251,37 @@ namespace MonkeyScheduler.SchedulerService.Test
         }
 
         [TestMethod]
-        [ExpectedException(typeof(ArgumentNullException))]
-        public async Task RetryTaskAsync_WithNullFailedNode_ThrowsArgumentNullException()
+        public async Task RetryTaskAsync_WithNullFailedNode_RetriesOnAvailableNode()
         {
+            // Arrange — null failedNode means "manual retry, no node to exclude"
+            _mockLoadBalancer.Setup(lb => lb.SelectNode(_testTask)).Returns(NewNodeUrl);
+            SetupMockHttpResponse(HttpMethod.Post, $"{NewNodeUrl}/api/task/execute", HttpStatusCode.OK);
+
             // Act
-            await _retryManager.RetryTaskAsync(_testTask, null);
+            var result = await _retryManager.RetryTaskAsync(_testTask, null);
+
+            // Assert
+            Assert.IsTrue(result);
+            // No node should be removed when failedNode is null
+            _mockNodeRegistry.Verify(nr => nr.RemoveNode(It.IsAny<string>()), Times.Never);
+            _mockLoadBalancer.Verify(lb => lb.RemoveNode(It.IsAny<string>()), Times.Never);
         }
 
         [TestMethod]
-        [ExpectedException(typeof(ArgumentNullException))]
-        public async Task RetryTaskAsync_WithEmptyFailedNode_ThrowsArgumentNullException()
+        public async Task RetryTaskAsync_WithEmptyFailedNode_RetriesOnAvailableNode()
         {
+            // Arrange — empty failedNode means "manual retry, no node to exclude"
+            _mockLoadBalancer.Setup(lb => lb.SelectNode(_testTask)).Returns(NewNodeUrl);
+            SetupMockHttpResponse(HttpMethod.Post, $"{NewNodeUrl}/api/task/execute", HttpStatusCode.OK);
+
             // Act
-            await _retryManager.RetryTaskAsync(_testTask, string.Empty);
+            var result = await _retryManager.RetryTaskAsync(_testTask, string.Empty);
+
+            // Assert
+            Assert.IsTrue(result);
+            // No node should be removed when failedNode is empty
+            _mockNodeRegistry.Verify(nr => nr.RemoveNode(It.IsAny<string>()), Times.Never);
+            _mockLoadBalancer.Verify(lb => lb.RemoveNode(It.IsAny<string>()), Times.Never);
         }
 
         [TestMethod]

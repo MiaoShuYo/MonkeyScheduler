@@ -46,12 +46,14 @@ namespace MonkeyScheduler.Core.Services.Handlers
                 if (OperatingSystem.IsWindows())
                 {
                     startInfo.FileName = "cmd.exe";
-                    startInfo.Arguments = $"/c {shellParams.Command}";
+                    startInfo.ArgumentList.Add("/c");
+                    startInfo.ArgumentList.Add(shellParams.Command);
                 }
                 else
                 {
                     startInfo.FileName = "/bin/bash";
-                    startInfo.Arguments = $"-c \"{shellParams.Command}\"";
+                    startInfo.ArgumentList.Add("-c");
+                    startInfo.ArgumentList.Add(shellParams.Command);
                 }
 
                 startInfo.UseShellExecute = false;

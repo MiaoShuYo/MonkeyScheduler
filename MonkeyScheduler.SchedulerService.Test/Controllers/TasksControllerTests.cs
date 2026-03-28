@@ -259,7 +259,7 @@ namespace MonkeyScheduler.SchedulerService.Test.Controllers
         }
 
         [TestMethod]
-        public void ReportTaskStatus_WithValidResult_ReturnsOkResult()
+        public async Task ReportTaskStatus_WithValidResult_ReturnsOkResult()
         {
             // Arrange
             var result = new TaskExecutionResult
@@ -273,17 +273,17 @@ namespace MonkeyScheduler.SchedulerService.Test.Controllers
             };
 
             // Act
-            var response = _tasksController.ReportTaskStatus(result);
+            var response = await _tasksController.ReportTaskStatus(result);
 
             // Assert
             Assert.IsInstanceOfType(response, typeof(OkResult));
         }
 
         [TestMethod]
-        public void ReportTaskStatus_WithNullResult_ReturnsBadRequest()
+        public async Task ReportTaskStatus_WithNullResult_ReturnsBadRequest()
         {
             // Act
-            var result = _tasksController.ReportTaskStatus(null);
+            var result = await _tasksController.ReportTaskStatus(null);
 
             // Assert
             Assert.IsInstanceOfType(result, typeof(BadRequestObjectResult));

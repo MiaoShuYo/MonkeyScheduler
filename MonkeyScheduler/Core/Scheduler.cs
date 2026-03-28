@@ -9,7 +9,7 @@ namespace MonkeyScheduler.Core
     /// 任务调度器
     /// 负责管理和执行计划任务
     /// </summary>
-    public class Scheduler
+    public class Scheduler : IDisposable
     {
         private readonly ITaskRepository _repo;
         private readonly ITaskDispatcher _dispatcher;
@@ -317,6 +317,14 @@ namespace MonkeyScheduler.Core
             _logger.LogInformation("调度器开始停止");
             _cts.Cancel();
             _logger.LogInformation("调度器已停止");
+        }
+
+        /// <summary>
+        /// 释放调度器持有的资源
+        /// </summary>
+        public void Dispose()
+        {
+            _cts.Dispose();
         }
     }
 } 
